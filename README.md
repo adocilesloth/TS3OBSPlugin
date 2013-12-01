@@ -7,6 +7,8 @@ ts3.txt goes in %appdata%\OBS\pluginData.
 Put your unique TS3 ID after cuid= .
 Replace \*R\* with your desired prefix (must be 10 character or less)
 
+Compiled using VS 2013
+
 INSTALLATION
 ============
 .ddl goes in ../Program Files/OBS/plugins
