@@ -10,4 +10,5 @@ Replace \*R\* with your desired prefix (must be 10 character or less)
 INSTALLATION
 ============
 .ddl goes in ../Program Files/OBS/plugins
+
 ts3.txt goes in ../AppData/Roaming/OBS/pluginData
