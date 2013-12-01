@@ -5,4 +5,4 @@ May make your name r or cted. Not sure why yet.
 
 ts3.txt goes in %appdata%\OBS\pluginData.
 Put your unique TS3 ID after cuid= .
-Replace \*R\* with your desired prefix.
+Replace \*R\* with your desired prefix (must be 10 character or less)
