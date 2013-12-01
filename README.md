@@ -1,2 +1,6 @@
 TS3OBSPlugin
 ============
+Plugin that edits a TS3 nickname to have a defined prefix when streaming.
+May make your name r or cted. Not sure why yet.
+
+ts3.txt goes in %appdata%\OBS\pluginData
