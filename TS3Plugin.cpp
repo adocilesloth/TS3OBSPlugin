@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 using namespace std;
 
 SOCKET obs;
-ofstream file;
+//ofstream file;
 ifstream settings;
 
 bool LoadPlugin()
@@ -80,6 +80,7 @@ void OnStopStream()
 	}
 	if(!Communicate(0))
 	{
+		CloseConnection();
 		return;
 	}
 	CloseConnection();
@@ -146,12 +147,16 @@ bool Communicate(int cont)
 	char reci3[256];
 	char reci4[256];
 
-	//debug file, remove if not needed
-	file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
+	int i = 0;	//break while loop counter for reci2
+	string truereci2 = "Welcome to";	//bad string for reci2
+	int j = 0;	//break while loop counter for reci3
+	string truereci3 = "error id=0";	//bad string for reci3
+
+	//debug file
+	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
 
 	//get settings file path
 	string path = OBSGetPluginDataPath().CreateUTF8String();
-	file << path << endl;
 	//gt cluid and recording prefix from ts3.txt
 	settings.open(path + "\\ts3.txt");
 	string cluid;
@@ -173,31 +178,56 @@ bool Communicate(int cont)
 		return false;
 	}
 
-	iResult = send(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
-	if (iResult == SOCKET_ERROR)
+	do
 	{
-		AppWarning(TEXT("First Send Failure"));
-		return false;
-	}
-	
-	iResult = recv(obs, reci2, 256 ,0);	//recieve result: error id=0...
-	if (iResult == SOCKET_ERROR)
+		iResult = send(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("First Send Failure"));
+			return false;
+		}
+
+		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("Second Recieve Failure"));
+			return false;
+		}
+
+		truereci2 = reci2;
+		truereci2 = truereci2.substr(0, 10);
+		i++;
+	}while (truereci2 == "Welcome to" && i < 10);	//while reci2 returns the wrong string
+
+	if (truereci2 == "Welcome to")	//fail request notifyregister...
 	{
-		AppWarning(TEXT("Second Recieve Failure"));
+		AppWarning(TEXT("clientnotifyregister failed after 10 tries"));
 		return false;
 	}
 
-	iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
-	if (iResult == SOCKET_ERROR)
+	do
 	{
-		AppWarning(TEXT("Second Send Failure"));
-		return false;
-	}
+		iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("Second Send Failure"));
+			return false;
+		}
 
-	iResult = recv(obs, reci3, 256 ,0);	//recieve name
-	if (iResult == SOCKET_ERROR)
+		iResult = recv(obs, reci3, 256, 0);	//recieve name
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("Third Recieve Failure"));
+			return false;
+		}
+		truereci3 = reci3;
+		truereci3 = truereci3.substr(0, 10);
+		j++;
+	} while (truereci3 == "error id=0" && j < 10);	//while reci3 returns the wrong string
+
+	if (truereci3 == "error id=0")	//fail request clientnamefromuid
 	{
-		AppWarning(TEXT("Third Recieve Failure"));
+		AppWarning(TEXT("clientgetnamefromuid failed after 10 tries"));
 		return false;
 	}
 
@@ -228,6 +258,12 @@ bool Communicate(int cont)
 	const string tmp = newname.str();	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
 
+	//file << "reci2:" << endl
+	//	 << reci2 << endl;
+	//file << "reci3:" << endl
+	//	 << reci3 << endl;
+	//file << tmp << endl;
+
 	iResult = send(obs, recname, (int)strlen(recname), 0);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -242,7 +278,7 @@ bool Communicate(int cont)
 		return false;
 	}
 
-	file.close();
+	//file.close();
 	settings.close();
 	return true;
 }
