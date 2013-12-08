@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 using namespace std;
 
+int countSubstring(const string&, const string&);
+
 SOCKET obs;
 //ofstream file;
 ifstream settings;
@@ -142,6 +144,7 @@ bool Communicate(int cont)
 	char reci2[256];
 	char reci3[256];
 	char reci4[256];
+	string space = "\\s";
 
 	int i = 0;	//break while loop counter for reci2
 	string truereci2 = "Welcome to";	//bad string for reci2
@@ -230,15 +233,16 @@ bool Communicate(int cont)
 	//get name
 	string identstart = "name=";
 	string name = reci3;
-	size_t startpos = name.find(identstart); //start of name
-	name = name.substr(startpos+5 , 30);
+	size_t startpos = name.find(identstart);	//start of name
+	int count = countSubstring(name, space);	//number of \s
+	name = name.substr(startpos+5 , 30 + count);
 	//get name end
 	
 	if(cont == 1)
 	{
 		if(name.substr(0, rec.length()) != rec)
 		{
-			name = name.substr(0, 30 - rec.length());
+			name = name.substr(0, 30 + count - rec.length());
 			newname << rec;
 		}
 	}
@@ -246,7 +250,7 @@ bool Communicate(int cont)
 	{
 		if(name.substr(0, rec.length()) == rec)
 		{
-			name = name.substr(rec.length(), 30);
+			name = name.substr(rec.length(), 30 + count - rec.length());
 		}
 	}
 
@@ -277,4 +281,20 @@ bool Communicate(int cont)
 	//file.close();
 	settings.close();
 	return true;
+}
+
+// returns count of non-overlapping occurrences of 'sub' in 'str'
+int countSubstring(const string& str, const string& sub)
+{
+	if (sub.length() == 0 || str.length() < sub.length())
+	{
+		return 0;
+	}
+
+	int count = 0;
+	for (size_t offset = str.find(sub); offset != std::string::npos; offset = str.find(sub, offset + sub.length()))
+	{
+		count++;
+	}
+	return count;
 }
