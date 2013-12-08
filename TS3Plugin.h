@@ -17,10 +17,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 ********************************************************************************/
 #pragma once
 #include "OBSApi.h"
-#include "resource.h"
-
-//extern LocaleStringLookup *pluginLocale;
-//#define PluginStr(text) pluginLocale->LookupString(TEXT2(text))
+//#include "resource.h"
 
 // Entry points
 extern "C" __declspec(dllexport) bool LoadPlugin();
