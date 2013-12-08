@@ -33,27 +33,23 @@ ifstream settings;
 bool LoadPlugin()
 {
 	AppWarning(TEXT("TS3Plugin Loaded"));
-	//pluginLocale = new LocaleStringLookup;
 	return true;
 }
 
 void UnloadPlugin()
 {
-	//delete pluginLocale;
+
 }
 
-//gives annoying errors that magically fix if this bit is not in.
-/*CTSTR GetPluginName()
+CTSTR GetPluginName()
 {
-	//return PluginStr("Plugin.Name");
-	return Str("TS3.Recording.Notifier");
+	return TEXT("TS3 Recording Notifier");
 }
 
 CTSTR GetPluginDescription()
 {
-	//return PluginStr("Plugin.Description");
-	return Str("Adds.*R*.before.TS3.nickname.when.recording.and.removes.it.once.recording.stops.");
-}*/
+	return TEXT("Adds *R* (or any other prefix) before TS3 nickname when recording. Removes the prefix when not recording.");
+}
 
 void OnStartStream()
 {
