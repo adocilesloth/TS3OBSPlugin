@@ -59,6 +59,10 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 	wuid = wstring(suid.begin(), suid.end());
 
 	getline(settings, spref);
+	if (spref.length() > 10)
+	{
+		spref = spref.substr(0, 10);
+	}
 	wpref = wstring(spref.begin(), spref.end());
 
 	settings.close();
@@ -77,9 +81,10 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			HWND UIDInput = GetDlgItem(hWnd, UIDEdt);
 			SetWindowText(UIDInput, wuid.c_str());
 		}
+		HWND PREFInput = GetDlgItem(hWnd, PREFEdt);
+		SendMessage(PREFInput, EM_LIMITTEXT, 10, 0);	//limit prefix to 10 chars
 		if (wpref.length() != 0)
 		{
-			HWND PREFInput = GetDlgItem(hWnd, PREFEdt);
 			SetWindowText(PREFInput, wpref.c_str());
 		}
 	}
