@@ -1,0 +1,103 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United Kingdom) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENG)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_TS3DLG DIALOGEX 0, 0, 301, 146
+STYLE DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "TS3 Recording Notifier Config"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,192,126,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,246,126,50,14
+    LTEXT           "Enter IPv4 address of computer running TS3. Leave as 127.0.0.1 for local computer.",IDC_STATIC,12,12,276,12
+    EDITTEXT        IPEdt,48,24,138,12,ES_AUTOHSCROLL | WS_GROUP
+    LTEXT           "IPv4:",IDC_STATIC,28,24,19,12,SS_CENTERIMAGE
+    LTEXT           "Enter TS3 Unique ID. Found under Settings/Identities in TS3.",IDC_STATIC,12,48,270,12
+    EDITTEXT        UIDEdt,48,66,138,12,ES_AUTOHSCROLL
+    LTEXT           "Unique ID:",IDC_STATIC,12,66,36,12,SS_CENTERIMAGE
+    LTEXT           "Enter recording prefix. Ten characters or less. No spaces.",IDC_STATIC,12,90,270,12
+    LTEXT           "Prefix:",IDC_STATIC,24,108,24,12,SS_CENTERIMAGE
+    EDITTEXT        PREFEdt,48,108,138,12,ES_AUTOHSCROLL
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_TS3DLG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 294
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 139
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (United Kingdom) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
