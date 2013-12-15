@@ -17,7 +17,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 ********************************************************************************/
 #pragma once
 #include "OBSApi.h"
-//#include "resource.h"
+#include "resource.h"
 
 // Entry points
 extern "C" __declspec(dllexport) bool LoadPlugin();
@@ -25,9 +25,12 @@ extern "C" __declspec(dllexport) void UnloadPlugin();
 extern "C" __declspec(dllexport) CTSTR GetPluginName();
 extern "C" __declspec(dllexport) CTSTR GetPluginDescription();
 
+extern "C" __declspec(dllexport) void ConfigPlugin(HWND);
+
 extern "C" __declspec(dllexport) void OnStartStream();
 extern "C" __declspec(dllexport) void OnStopStream();
 
 bool ConnectToHost(int, char*);
 void CloseConnection();
 bool Communicate(int);
+char* getIP();
