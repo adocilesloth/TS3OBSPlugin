@@ -16,6 +16,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 ********************************************************************************/
 #include "TS3Plugin.h"
+#include "resource.h"
 
 #include <fstream>
 #include <string>
@@ -29,11 +30,131 @@ using namespace std;
 int countSubstring(const string&, const string&);
 
 SOCKET obs;
-//ofstream file;
+ofstream file;
 ifstream settings;
+
+//config popout stuff
+HINSTANCE   hInstance;
+bool bPSVEnabled = FALSE;
+
+INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	LPWSTR ip = new wchar_t;	//recieve string
+	LPWSTR uid = new wchar_t;	//recieve string
+	LPWSTR pref = new wchar_t;	//recieve string
+	string sip, suid, spref;	//temp strings
+	wstring wip, wuid, wpref;	//sending strings
+	int length;
+	string path = OBSGetPluginDataPath().CreateUTF8String();
+	wofstream osettings;
+	
+	//get current information
+	settings.open(path + "\\ts3.ini");
+
+	getline(settings, sip);
+	wip = wstring(sip.begin(), sip.end());
+
+	getline(settings, suid);
+	suid = suid.substr(6, suid.length() - 6);	//remove cluid=
+	wuid = wstring(suid.begin(), suid.end());
+
+	getline(settings, spref);
+	wpref = wstring(spref.begin(), spref.end());
+
+	settings.close();
+
+	switch (message)
+	{
+	case WM_INITDIALOG:
+	{
+		if (wip.length() != 0)
+		{
+			HWND IPInput = GetDlgItem(hWnd, IPEdt);
+			SetWindowText(IPInput, wip.c_str());
+		}
+		if (wuid.length() != 0)
+		{
+			HWND UIDInput = GetDlgItem(hWnd, UIDEdt);
+			SetWindowText(UIDInput, wuid.c_str());
+		}
+		if (wpref.length() != 0)
+		{
+			HWND PREFInput = GetDlgItem(hWnd, PREFEdt);
+			SetWindowText(PREFInput, wpref.c_str());
+		}
+	}
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDOK:
+		{
+			//get information
+			osettings.open(path + "\\ts3.ini");
+
+			//IP
+			HWND IPOutput = GetDlgItem(hWnd, IPEdt);
+			length = GetWindowTextLength(IPOutput) + 1;
+			TCHAR * ipbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));					
+			GetWindowText(IPOutput, ipbuf, length);
+			osettings << ipbuf << endl;	//write to file	
+			GlobalFree(ipbuf);			//clear buffer
+			//uid
+			HWND UIDOutput = GetDlgItem(hWnd, UIDEdt);
+			length = GetWindowTextLength(UIDOutput) + 1;
+			TCHAR * uidbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
+			GetWindowText(UIDOutput, uidbuf, length);
+			osettings << "cluid="
+					  << uidbuf << endl;	//write to file
+			GlobalFree(uidbuf);				//clear buffer
+			//prefix
+			HWND PREFOutput = GetDlgItem(hWnd, PREFEdt);
+			length = GetWindowTextLength(PREFOutput) + 1;
+			TCHAR * prefbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
+			GetWindowText(PREFOutput, prefbuf, length);
+			osettings << prefbuf;		//write to file
+			GlobalFree(prefbuf);		//clear buffer
+			
+			//clean up
+			osettings.close();
+			
+			//close dialog box
+			EndDialog(hWnd, LOWORD(wParam));
+			break;
+		}
+
+		case IDCANCEL:
+			EndDialog(hWnd, LOWORD(wParam));
+			break;
+		}
+	}
+
+	return 0;
+}
+
+void ConfigPlugin(HWND hWnd)
+{
+	DialogBox(hInstance, MAKEINTRESOURCE(IDD_TS3DLG), hWnd, ConfigDlgProc);
+}
 
 bool LoadPlugin()
 {
+	string path = OBSGetPluginDataPath().CreateUTF8String();
+	settings.open(path + "\\ts3.ini");
+
+	if (!settings.is_open())
+	{
+		ofstream create(path + "\\ts3.ini");
+		create << "127.0.0.1" << endl;
+		create << "cluid=" << endl;
+		create << "*R*";
+		create.close();			//stop using settings file
+	}
+	else
+	{
+		settings.close();		//stop using settings file
+	}
+
 	AppWarning(TEXT("TS3Plugin Loaded"));
 	return true;
 }
@@ -55,7 +176,9 @@ CTSTR GetPluginDescription()
 
 void OnStartStream()
 {
-	char* adrs = "127.0.0.1";
+	char adrs[16];
+	strcpy(adrs, getIP());
+
 	if(!ConnectToHost(25639, adrs))
 	{
 		return;
@@ -71,7 +194,9 @@ void OnStartStream()
 
 void OnStopStream()
 {
-	char* adrs = "127.0.0.1";
+	char adrs[16];
+	strcpy(adrs, getIP());
+
 	if(!ConnectToHost(25639, adrs))
 	{
 		return;
@@ -84,6 +209,21 @@ void OnStopStream()
 	CloseConnection();
 
 	return;
+}
+
+char* getIP()
+{
+	string path = OBSGetPluginDataPath().CreateUTF8String();
+	string IPadrsstr;
+	char *IPadrs;
+
+	settings.open(path + "\\ts3.ini");
+
+	getline(settings, IPadrsstr);
+	IPadrs = const_cast<char*>(IPadrsstr.c_str());
+
+	settings.close();
+	return IPadrs;
 }
 
 bool ConnectToHost(int port, char* adrs)
@@ -101,10 +241,10 @@ bool ConnectToHost(int port, char* adrs)
         return false;
     }
 
-	SOCKADDR_IN target;				//Socket address information
-    target.sin_family = AF_INET;	// address family Internet
-    target.sin_port = htons (port); //Port to connect on
-    target.sin_addr.s_addr = inet_addr (adrs); //Target IP
+	SOCKADDR_IN target;							//Socket address information
+    target.sin_family = AF_INET;				// address family Internet
+    target.sin_port = htons (port);				//Port to connect on
+    target.sin_addr.s_addr = inet_addr (adrs);	//Target IP
 
 	obs = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP); //Create socket
     if (obs == INVALID_SOCKET)
@@ -156,24 +296,26 @@ bool Communicate(int cont)
 
 	//get settings file path
 	string path = OBSGetPluginDataPath().CreateUTF8String();
-	//gt cluid and recording prefix from ts3.txt
-	settings.open(path + "\\ts3.txt");
+	//get cluid and recording prefix from ts3.txt
+	settings.open(path + "\\ts3.ini");
 	string cluid;
+	getline(settings, cluid);	//first line is ip address
+	cluid.clear();				//so we don't want it
 	getline(settings, cluid);
 	string rec;
 	getline(settings, rec);
+
 	//set up the getname call
 	string tempgetname = "clientgetnamefromuid ";
 	tempgetname.append(cluid);
 	tempgetname.append("\n");
 	const char *getname = tempgetname.c_str();
-	//get the recording prefix
-	rec = rec.substr(7, 10);
 
 	iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("First Recieve Failure"));
+		settings.close();
 		return false;
 	}
 
@@ -183,6 +325,7 @@ bool Communicate(int cont)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("First Send Failure"));
+			settings.close();
 			return false;
 		}
 
@@ -190,6 +333,7 @@ bool Communicate(int cont)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Second Recieve Failure"));
+			settings.close();
 			return false;
 		}
 
@@ -201,6 +345,7 @@ bool Communicate(int cont)
 	if (truereci2 == "Welcome to")	//fail request notifyregister...
 	{
 		AppWarning(TEXT("clientnotifyregister failed after 10 tries"));
+		settings.close();
 		return false;
 	}
 
@@ -210,6 +355,7 @@ bool Communicate(int cont)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Second Send Failure"));
+			settings.close();
 			return false;
 		}
 
@@ -217,6 +363,7 @@ bool Communicate(int cont)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Third Recieve Failure"));
+			settings.close();
 			return false;
 		}
 		truereci3 = reci3;
@@ -227,6 +374,7 @@ bool Communicate(int cont)
 	if (truereci3 == "error id=0")	//fail request clientnamefromuid
 	{
 		AppWarning(TEXT("clientgetnamefromuid failed after 10 tries"));
+		settings.close();
 		return false;
 	}
 
@@ -254,20 +402,15 @@ bool Communicate(int cont)
 		}
 	}
 
-	newname << name << "\n";		//finish name set string
+	newname << name << "\n";			//finish name set string
 	const string tmp = newname.str();	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
-
-	//file << "reci2:" << endl
-	//	 << reci2 << endl;
-	//file << "reci3:" << endl
-	//	 << reci3 << endl;
-	//file << tmp << endl;
 
 	iResult = send(obs, recname, (int)strlen(recname), 0);
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Third Send Failure"));
+		settings.close();
 		return false;
 	}
 
@@ -275,6 +418,7 @@ bool Communicate(int cont)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Fourth Recieve Failure"));
+		settings.close();
 		return false;
 	}
 
@@ -297,4 +441,12 @@ int countSubstring(const string& str, const string& sub)
 		count++;
 	}
 	return count;
+}
+
+BOOL CALLBACK DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+{
+	if (fdwReason == DLL_PROCESS_ATTACH)
+		hInstance = hinstDLL;
+
+	return TRUE;
 }
