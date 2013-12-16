@@ -181,8 +181,7 @@ CTSTR GetPluginDescription()
 
 void OnStartStream()
 {
-	char adrs[16];
-	strcpy(adrs, getIP());
+	char *adrs = getIP();
 
 	if(!ConnectToHost(25639, adrs))
 	{
@@ -199,8 +198,7 @@ void OnStartStream()
 
 void OnStopStream()
 {
-	char adrs[16];
-	strcpy(adrs, getIP());
+	char *adrs = getIP();
 
 	if(!ConnectToHost(25639, adrs))
 	{
@@ -220,12 +218,12 @@ char* getIP()
 {
 	string path = OBSGetPluginDataPath().CreateUTF8String();
 	string IPadrsstr;
-	char *IPadrs;
 
 	settings.open(path + "\\ts3.ini");
 
 	getline(settings, IPadrsstr);
-	IPadrs = const_cast<char*>(IPadrsstr.c_str());
+	char *IPadrs = new char[IPadrsstr.length() + 1];
+	strcpy(IPadrs, IPadrsstr.c_str());
 
 	settings.close();
 	return IPadrs;
