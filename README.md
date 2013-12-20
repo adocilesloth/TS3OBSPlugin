@@ -2,6 +2,7 @@ TS3OBSPlugin
 ============
 Plugin that edits a TS3 nickname to have a defined prefix when streaming.  
 (Hopefully) Fixed the bug that renamed a user r or cted.  
+As of 2013-12-20, the plugin has been updated to allow users to mute and/or deafen themselves as well as switch channels while streaming/recording. They will be unmuted/undeafened and moved back to the original channel when recording/streaming stops.  
   
 Compiled using VS 2010  
 
