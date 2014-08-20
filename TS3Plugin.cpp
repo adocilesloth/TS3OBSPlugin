@@ -1,41 +1,13 @@
-<<<<<<< HEAD
 /*****************************
 2014 <adocilesloth@gmail.com>
 *****************************/
 #include "TS3Plugin.h"
 #include "resource.h"
 #include "OverlaySource.h"
-=======
-/********************************************************************************
-Copyright (C) 2013 William Pearson <adocilesloth@gmail.com>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
-********************************************************************************/
-#include "TS3Plugin.h"
-#include "resource.h"
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 #include <fstream>
 #include <sstream>
 
-<<<<<<< HEAD
-=======
-#define WIN32_MEAN_AND_LEAN
-#include <winsock2.h>
-
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 using namespace std;
 
 int countSubstring(const string&, const string&);
@@ -49,12 +21,9 @@ HINSTANCE   hInstance;
 //cid for config
 string cid;
 
-<<<<<<< HEAD
 //Overlay Stuff
 HANDLE OvrThread;
 
-=======
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	string sip, suid, spref, smute, schan, spw;		//temp strings
@@ -63,19 +32,11 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
 	bool bmute, bdeaf, bchan;		//bools for checkboxes
 	int length;
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	wofstream osettings;
 	
 	//get current information
 	settings.open(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	wofstream osettings;
-	
-	//get current information
-	settings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 	getline(settings, sip);
 	wip = wstring(sip.begin(), sip.end());
@@ -173,11 +134,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		case IDOK:
 		{
 			//get information
-<<<<<<< HEAD
 			osettings.open(path + L"\\ts3.ini");
-=======
-			osettings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 			//IP
 			HWND IPOutput = GetDlgItem(hWnd, IPEdt);
@@ -274,11 +231,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		{
 			char *adrs = getIP();
 
-<<<<<<< HEAD
 			if(!ConnectToHost(25639, adrs, obs))
-=======
-			if(!ConnectToHost(25639, adrs))
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 			{
 				break;
 			}
@@ -320,11 +273,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			size_t endpos = cid.find("\n");
 			cid = cid.substr(startpos, endpos - startpos);
 
-<<<<<<< HEAD
 			CloseConnection(obs);
-=======
-			CloseConnection();
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 			break;
 		}
 
@@ -341,7 +290,6 @@ void ConfigPlugin(HWND hWnd)
 
 bool LoadPlugin()
 {
-<<<<<<< HEAD
 
 	OBSRegisterImageSourceClass(L"OverlaySource", L"TeamSpeak 3 Overlay", (OBSCREATEPROC)CreateOverlaySource, (OBSCONFIGPROC)ConfigureOverlaySource);
 
@@ -351,14 +299,6 @@ bool LoadPlugin()
 	if (!settings.is_open())
 	{
 		ofstream create(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	settings.open(path + "\\ts3.ini");
-
-	if (!settings.is_open())
-	{
-		ofstream create(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 		create << "127.0.0.1" << endl;
 		create << "cluid=" << endl;
 		create << "*R*" << endl;
@@ -386,44 +326,27 @@ bool LoadPlugin()
 void UnloadPlugin()
 {
 	//get settings file path
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	path.append(L"/ts3temp.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	path.append("/ts3temp.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	//test if ts3temp.ini exists. If yes, delete
 	settings.open(path);
 	if(settings.is_open())
 	{
 		settings.close();
-<<<<<<< HEAD
 		stringstream spath;
 		spath << path.c_str();
 		remove(spath.str().c_str());
-=======
-		remove(path.c_str());
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	}
 }
 
 CTSTR GetPluginName()
 {
-<<<<<<< HEAD
 	return TEXT("Teamspeak 3 Plugin");
-=======
-	return TEXT("TS3 Recording Notifier");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 }
 
 CTSTR GetPluginDescription()
 {
-<<<<<<< HEAD
 	return TEXT("Adds *R* (or any other prefix) before TS3 nickname when recording. Options to mute/deafen self and move channel while recording. Undos all effects when recording stops. Also adds a simple ovelay as a source.");
-=======
-	return TEXT("Adds *R* (or any other prefix) before TS3 nickname when recording. Options to mute/deafen self and move channel while recording. Undos all effects when recording stops.");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 }
 
 void OnStartStream()
@@ -431,25 +354,17 @@ void OnStartStream()
 	char *adrs = getIP();
 	bool start;
 
-<<<<<<< HEAD
 	if(!ConnectToHost(25639, adrs, obs))
-=======
-	if(!ConnectToHost(25639, adrs))
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	{
 		return;
 	}
 	start = Communicate(1);
 	start = MuteandDeafen(1);
 	start = ChannelSwitch(1);
-<<<<<<< HEAD
 	CloseConnection(obs);
 
 	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, 0);
 
-=======
-	CloseConnection();
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 	return;
 }
@@ -459,43 +374,28 @@ void OnStopStream()
 	char *adrs = getIP();
 	bool stop;
 
-<<<<<<< HEAD
 	ShutdownOverlay();
 	WaitForSingleObject(OvrThread, INFINITE);
 	ResetOverlay();
 
 	if(!ConnectToHost(25639, adrs, obs))
-=======
-	if(!ConnectToHost(25639, adrs))
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	{
 		return;
 	}
 	stop = Communicate(0);
 	stop = MuteandDeafen(0);
 	stop = ChannelSwitch(0);
-<<<<<<< HEAD
 	CloseConnection(obs);
-=======
-	CloseConnection();
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 	return;
 }
 
 char* getIP()
 {
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	string IPadrsstr;
 
 	settings.open(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	string IPadrsstr;
-
-	settings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 
 	getline(settings, IPadrsstr);
 	char *IPadrs = new char[IPadrsstr.length() + 1];
@@ -505,57 +405,6 @@ char* getIP()
 	return IPadrs;
 }
 
-<<<<<<< HEAD
-=======
-bool ConnectToHost(int port, char* adrs)
-{
-	WSADATA wsadata;
-	int error = WSAStartup(0x0202, &wsadata);	//error on startup?
-
-	if(error)
-	{
-		return false;
-	}
-	if (wsadata.wVersion != 0x0202)	//error check winsock version
-    {
-        WSACleanup(); //Clean up Winsock
-        return false;
-    }
-
-	SOCKADDR_IN target;							//Socket address information
-    target.sin_family = AF_INET;				// address family Internet
-    target.sin_port = htons (port);				//Port to connect on
-    target.sin_addr.s_addr = inet_addr (adrs);	//Target IP
-
-	obs = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP); //Create socket
-    if (obs == INVALID_SOCKET)
-    {
-        return false; //Couldn't create the socket
-    }  
-
-	if (connect(obs, (SOCKADDR *)&target, sizeof(target)) == SOCKET_ERROR) //connect
-    {
-		AppWarning(TEXT("Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
-        return false; //Couldn't connect
-    }
-    else
-	{
-        return true; //Success
-	}
-}
-
-void CloseConnection()
-{
-    //Close the socket if it exists
-    if(obs)
-	{
-        closesocket(obs);
-	}
-
-    WSACleanup(); //Clean up Winsock
-}
-
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 bool Communicate(int cont)
 {
 	int iResult;
@@ -577,15 +426,9 @@ bool Communicate(int cont)
 	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
 
 	//get settings file path
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	//get cluid and recording prefix from ts3.txt
 	settings.open(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	//get cluid and recording prefix from ts3.txt
-	settings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	string cluid;
 	getline(settings, cluid);	//first line is ip address
 	cluid.clear();				//so we don't want it
@@ -718,15 +561,9 @@ bool Communicate(int cont)
 bool MuteandDeafen(int state)
 {
 	//get settings file path
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	//get mute and deafen settings from ts3.ini
 	settings.open(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	//get mute and deafen settings from ts3.ini
-	settings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	string mnd;
 	getline(settings, mnd);		//ip
 	mnd.clear();
@@ -821,15 +658,9 @@ bool MuteandDeafen(int state)
 bool ChannelSwitch(int state)
 {
 	//get settings file path
-<<<<<<< HEAD
 	wstring path = OBSGetPluginDataPath().Array();
 	//get mute and deafen settings from ts3.ini
 	settings.open(path + L"\\ts3.ini");
-=======
-	string path = OBSGetPluginDataPath().CreateUTF8String();
-	//get mute and deafen settings from ts3.ini
-	settings.open(path + "\\ts3.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 	string swtch;
 	getline(settings, swtch);		//ip
 	swtch.clear();
@@ -895,11 +726,7 @@ bool ChannelSwitch(int state)
 		size_t endpos = rcid.find("\n");
 		rcid = rcid.substr(startpos, endpos - startpos);
 
-<<<<<<< HEAD
 		ofstream rturn(path + L"\\ts3temp.ini");
-=======
-		ofstream rturn(path + "\\ts3temp.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 		rturn << rcid;
 		rturn.close();
 
@@ -938,11 +765,7 @@ bool ChannelSwitch(int state)
 	else	//switch back
 	{
 		//get return cid
-<<<<<<< HEAD
 		ifstream rturn(path + L"\\ts3temp.ini");
-=======
-		ifstream rturn(path + "\\ts3temp.ini");
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d
 		if(!rturn.is_open())	//set target as same channel
 		{
 			rcid = reci;
@@ -1007,7 +830,6 @@ int countSubstring(const string& str, const string& sub)
 BOOL CALLBACK DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if (fdwReason == DLL_PROCESS_ATTACH)
-<<<<<<< HEAD
 	{
 		hInstance = hinstDLL;
 	}
@@ -1018,9 +840,3 @@ HINSTANCE GetHinstance()
 {
 	return hInstance;
 }
-=======
-		hInstance = hinstDLL;
-
-	return TRUE;
-}
->>>>>>> 80faf0302e1248b2a6468bfd5f267c90f860ae1d

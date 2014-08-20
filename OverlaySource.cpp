@@ -11,7 +11,6 @@ Adapted from TextOutputSource.cpp origionally created by <obs.jim@gmail.com>
 #include <string>
 
 #include <fstream>
-std::ofstream file("C:/Program Files (x86)/OBS/plugins/outfile.txt");
 
 HINSTANCE OvrHinst;
 
@@ -742,7 +741,6 @@ static DWORD SelectColour(HWND hwnd, DWORD curCol)
 
 	if (ChooseColor(&cc) == TRUE)
 	{
-		file << cc.rgbResult << std::endl;
 		return cc.rgbResult;// | 0xFFFFFFFF;
 	}
 	else
@@ -766,7 +764,6 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 XElement *data = configInfo->data;
 
 				fcolour = data->GetInt(TEXT("color"), 0xFFFFFFFF);
-				file << "initdlg\n" << fcolour << std::endl;
 				bgcolour = data->GetInt(TEXT("backgroundColor"), 0xFF000000);
 				olcolour = data->GetInt(TEXT("outlineColor"), 0xFF000000);
 
