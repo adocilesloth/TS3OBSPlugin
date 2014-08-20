@@ -19,3 +19,6 @@ In the second box add your TS3 Unique ID (Settings -> Identities -> Unique ID)
 Change \*R\* in the third box to what ever you want the prefix to be (must be 10 characters or less and have NO spaces)  
 The next two checkboxes are self explanatory.  
 If the "Change Channel" checkbox is ticked, the "Set Channel" button and "Channel Password" boxes are activated. Move to the streaming/recording channel and press "Set Channel" to set that channel in OBS. Then add the channel password if necessary.  
+
+This plugin also adds an overlay as a source. The overlay shows who is in channel and if they are talking or not.
+This overlay was created by modifying the Text source that is shipped with OBS.
