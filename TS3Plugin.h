@@ -34,3 +34,5 @@ void ResetOverlay();
 void RunOverlay(char*);
 
 HINSTANCE GetHinstance();
+
+void ReplaceAll(std::string&, const std::string&, const std::string&);

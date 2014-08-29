@@ -20,6 +20,7 @@ ifstream settings;
 HINSTANCE   hInstance;
 //cid for config
 string cid;
+bool bprefix;
 
 //Overlay Stuff
 HANDLE OvrThread;
@@ -126,6 +127,26 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			HWND PWInput = GetDlgItem(hWnd, PWEdt);
 			SetWindowText(PWInput, wpw.c_str());
 		}
+		if(!bprefix)
+		{
+			SendMessage(GetDlgItem(hWnd, IDC_PRE), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_SUF), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
+
+			ShowWindow(GetDlgItem(hWnd, IDC_EPREFTXT), SW_HIDE);
+			ShowWindow(GetDlgItem(hWnd, IDC_PREFTXT), SW_HIDE);
+			ShowWindow(GetDlgItem(hWnd, IDC_ESUFFTXT), SW_SHOW);
+			ShowWindow(GetDlgItem(hWnd, IDC_SUFFTXT), SW_SHOW);
+		}
+		else
+		{
+			SendMessage(GetDlgItem(hWnd, IDC_PRE), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
+			SendMessage(GetDlgItem(hWnd, IDC_SUF), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+
+			ShowWindow(GetDlgItem(hWnd, IDC_EPREFTXT), SW_SHOW);
+			ShowWindow(GetDlgItem(hWnd, IDC_PREFTXT), SW_SHOW);
+			ShowWindow(GetDlgItem(hWnd, IDC_ESUFFTXT), SW_HIDE);
+			ShowWindow(GetDlgItem(hWnd, IDC_SUFFTXT), SW_HIDE);
+		}
 	}
 
 	case WM_COMMAND:
@@ -196,8 +217,12 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			TCHAR * pwbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
 			GetWindowText(PWOutput, pwbuf, length);
 			osettings << " cpw="
-					  << pwbuf;			//write to file
+					  << pwbuf << endl;	//write to file
 			GlobalFree(pwbuf);			//clear buffer
+
+			bool bpre = SendMessage(GetDlgItem(hWnd, IDC_PRE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			osettings << bpre;			//write pefix
+			bprefix = bpre;				//and reassign global
 
 			//clean up
 			osettings.close();
@@ -277,6 +302,28 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			break;
 		}
 
+		case IDC_PRE:
+		case IDC_SUF:
+		{
+			bool bpre = SendMessage(GetDlgItem(hWnd, IDC_PRE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			bool bsuf = SendMessage(GetDlgItem(hWnd, IDC_SUF), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			if(bpre)
+			{
+				ShowWindow(GetDlgItem(hWnd, IDC_EPREFTXT), SW_SHOW);
+				ShowWindow(GetDlgItem(hWnd, IDC_PREFTXT), SW_SHOW);
+				ShowWindow(GetDlgItem(hWnd, IDC_ESUFFTXT), SW_HIDE);
+				ShowWindow(GetDlgItem(hWnd, IDC_SUFFTXT), SW_HIDE);
+			}
+			else if(bsuf)
+			{
+				ShowWindow(GetDlgItem(hWnd, IDC_EPREFTXT), SW_HIDE);
+				ShowWindow(GetDlgItem(hWnd, IDC_PREFTXT), SW_HIDE);
+				ShowWindow(GetDlgItem(hWnd, IDC_ESUFFTXT), SW_SHOW);
+				ShowWindow(GetDlgItem(hWnd, IDC_SUFFTXT), SW_SHOW);
+			}
+			break;
+		}
+
 		}
 	}
 
@@ -305,10 +352,12 @@ bool LoadPlugin()
 		create << "0" << endl;
 		create << "0" << endl;
 		create << "cid=1" << endl;
-		create << " cpw=";
+		create << " cpw=" << endl;
+		create << "1";
 		create.close();		//stop using settings file
 
 		cid = "cid=1";		//set cid string
+		bprefix = 1;
 	}
 	else
 	{
@@ -316,6 +365,9 @@ bool LoadPlugin()
 		{
 			getline(settings, cid);	//set cid string
 		}
+		string tmp;
+		getline(settings, tmp);	//get rid of " cpw="
+		settings >> bprefix;	//get if prefix or suffix
 		settings.close();		//stop using settings file
 	}
 
@@ -435,6 +487,8 @@ bool Communicate(int cont)
 	getline(settings, cluid);
 	string rec;
 	getline(settings, rec);
+	ReplaceAll(rec, " ", space);		//replace spaces with \s
+	int modcount = countSubstring(rec, space);	//number of \s
 
 	//set up the getname call
 	string tempgetname = "clientgetnamefromuid ";
@@ -516,24 +570,58 @@ bool Communicate(int cont)
 	int count = countSubstring(name, space);	//number of \s
 	name = name.substr(startpos+5 , 30 + count);
 	//get name end
-	
-	if(cont == 1)
+
+	if(!bprefix)	//if using suffix
 	{
-		if(name.substr(0, rec.length()) != rec)
+		size_t spc = name.find("\n");
+		name = name.substr(0, spc);
+		int nstrt = name.length();
+		nstrt = nstrt - rec.length();
+		int nlen = name.length() - count;
+
+		if(cont == 1)			//adding modifier
 		{
-			name = name.substr(0, 30 + count - rec.length());
-			newname << rec;
+			if(name.substr(nstrt) != rec)
+			{
+				if(nlen > 30)
+				{
+					name = name.substr(0, 30 + count - rec.length());
+				}
+				newname << name
+						<< rec << "\n";		//finish name set string
+			}
+		}
+		else if(cont == 0)		//removing modifier
+		{
+			if(name.substr(nstrt) == rec)
+			{
+				name = name.substr(0, nlen + count - rec.length());
+			}
+			newname << name << "\n";		//finish name set string
 		}
 	}
-	else if(cont == 0)
+	else	//if using prefix
 	{
-		if(name.substr(0, rec.length()) == rec)
+		if(cont == 1)			//adding modifier
 		{
-			name = name.substr(rec.length(), 30 + count - rec.length());
+			if(name.substr(0, rec.length()) != rec)
+			{
+				name = name.substr(0, 30 + count - rec.length());
+				newname << rec
+						<< name << "\n";	//finish name set string
+			}
 		}
+		else if(cont == 0)		//removing modifier
+		{
+			if(name.substr(0, rec.length()) == rec)
+			{
+				name = name.substr(rec.length(), 30 + count - modcount - rec.length());
+			}
+		}
+		newname << name << "\n";			//finish name set string
 	}
 
-	newname << name << "\n";			//finish name set string
+
 	const string tmp = newname.str();	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
 
@@ -839,4 +927,15 @@ BOOL CALLBACK DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 HINSTANCE GetHinstance()
 {
 	return hInstance;
+}
+
+void ReplaceAll(string &str, const string& from, const string& to)
+{
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != string::npos)
+	{
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    return;
 }
