@@ -577,6 +577,10 @@ bool Communicate(int cont)
 		name = name.substr(0, spc);
 		int nstrt = name.length();
 		nstrt = nstrt - rec.length();
+		if(nstrt < 0)
+		{
+			nstrt = 0;
+		}
 		int nlen = name.length() - count;
 
 		if(cont == 1)			//adding modifier
