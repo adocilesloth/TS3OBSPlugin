@@ -406,17 +406,17 @@ void OnStartStream()
 	char *adrs = getIP();
 	bool start;
 
+	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, 0);
+
 	if(!ConnectToHost(25639, adrs, obs))
 	{
+		AppWarning(TEXT("StartStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
 		return;
 	}
 	start = Communicate(1);
 	start = MuteandDeafen(1);
 	start = ChannelSwitch(1);
 	CloseConnection(obs);
-
-	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, 0);
-
 
 	return;
 }
@@ -432,6 +432,7 @@ void OnStopStream()
 
 	if(!ConnectToHost(25639, adrs, obs))
 	{
+		AppWarning(TEXT("StopStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
 		return;
 	}
 	stop = Communicate(0);

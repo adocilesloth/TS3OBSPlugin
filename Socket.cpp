@@ -33,7 +33,6 @@ bool ConnectToHost(int port, char* adrs, SOCKET& sock)
 
 	if (connect(sock, (SOCKADDR *)&target, sizeof(target)) == SOCKET_ERROR) //connect
     {
-		AppWarning(TEXT("Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
         return false; //Couldn't connect
     }
     else

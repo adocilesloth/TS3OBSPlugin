@@ -30,13 +30,6 @@ void ResetOverlay()
 
 void RunOverlay(char* adrs)
 {
-	AppWarning(TEXT("Overlay: Starting"));
-	if(!ConnectToHost(25639, adrs, overlay))
-	{
-		AppWarning(TEXT("Overlay: Connect Failure"));
-		return;
-	}
-
 	std::locale loc(std::locale::classic(), new codecvt_utf8<wchar_t>);
 	//file.imbue(loc);
 
@@ -61,17 +54,9 @@ void RunOverlay(char* adrs)
 	string list;
 	string name[10];
 	bool talk[10] = {0};
-
-	Sleep(5);				//to allow full mesage to be created
-	iResult = recv(overlay, reci1, 256 ,0);	//get TS3 Client...
-	if (iResult == SOCKET_ERROR)
-	{
-		AppWarning(TEXT("Overlay: First Recieve Failure"));
-		CloseConnection(overlay);
-		return;
-	}
-
-	AppWarning(TEXT("Overlay: Started"));
+	bool skipname = false;
+	bool discon = true;
+	bool noserv = true;
 
 	//File stuff
 	wstring path = OBSGetPluginDataPath().Array();
@@ -79,16 +64,42 @@ void RunOverlay(char* adrs)
 	wofstream fOverlay;
 	fOverlay.imbue(loc);
 
+	AppWarning(TEXT("Overlay: Started"));
+
 	//Overlay Loop
 	while(!close.state())
 	{
+		//connect
+		if(!ConnectToHost(25639, adrs, overlay))
+		{
+			if(discon)	//if initial disconnection
+			{
+				AppWarning(TEXT("Overlay: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
+				discon = false;
+			}
+			fOverlay.open(path);		//empty client list text file if not connected
+			fOverlay.close();
+			goto skip;
+		}
+
+		discon = true;
+
+		Sleep(5);				//to allow full mesage to be created
+		iResult = recv(overlay, reci1, 256 ,0);	//get TS3 Client...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("Overlay: First Recieve Failure"));
+			CloseConnection(overlay);
+			goto skip;
+		}
+
 		//get cid
 		iResult = send(overlay, whoami, (int)strlen(whoami), 0);	//send whoami
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: whoami Send Failure"));
 			CloseConnection(overlay);
-			return;
+			goto skip;
 		}
 		Sleep(1);								//let message be fully sent
 		iResult = recv(overlay, reci2, 64 ,0);	//get whoami
@@ -96,14 +107,37 @@ void RunOverlay(char* adrs)
 		{
 			AppWarning(TEXT("Overlay: whoami Recieve Failure"));
 			CloseConnection(overlay);
-			return;
+			goto skip;
 		}
+		tempstr = reci2;
+		if(tempstr.substr(0, 13) == "error id=1794")
+		{
+			if(noserv)	//if initial disconnection
+			{
+				AppWarning(TEXT("Overlay: Not Connected to TS3 Server"));
+				noserv = false;
+			}
+			CloseConnection(overlay);
+			fOverlay.open(path);			//empty client list text file if not on server
+			fOverlay.close();
+			goto skip;
+		}
+
+		noserv = true;
 
 		identstart = "cid=";
 		identend = "\n";
 		cid = reci2;
 		startpos = cid.find(identstart);
+		if(startpos == -1)
+		{
+			goto skip;
+		}
 		endpos = cid.find(identend);
+		if(endpos < 0)
+		{
+			goto skip;
+		}
 		cid = cid.substr(startpos, endpos - startpos);
 		
 		//set up channelclientlist
@@ -118,15 +152,15 @@ void RunOverlay(char* adrs)
 		{
 			AppWarning(TEXT("Overlay: channelclientlist Send Failure"));
 			CloseConnection(overlay);
-			return;
+			goto skip;
 		}
-		Sleep(100);					//allows full list to be generated and limits loop rate
+		Sleep(5);					//100//allows full list to be generated and limits loop rate
 		iResult = recv(overlay, reci3, 4096 ,0);					//recieve channelcli...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: channelclientlist Recieve Failure"));
 			CloseConnection(overlay);
-			return;
+			goto skip;
 		}
 
 		identstart = "name=";
@@ -136,11 +170,32 @@ void RunOverlay(char* adrs)
 		for(int i = 0; i < 10; i++)
 		{
 			startpos = list.find(identstart);
+			if(startpos == -1)
+			{
+				skipname = true;
+			}
 			endpos = list.find(identend);
-			tempstr = list.substr(startpos + 5, endpos-startpos-6);
-			name[i] = tempstr;
+			if(endpos < 0)
+			{
+				skipname = true;
+			}
+			if(!skipname)
+			{
+				tempstr = list.substr(startpos + 5, endpos-startpos-6);
+				name[i] = tempstr;
+			}
+			else
+			{
+				name[i] = "";
+				skipname = false;
+			}
 			startpos = list.find(talkstart);
-			if(list.substr(startpos + 20, 1) == "0")
+			if(startpos == -1)
+			{
+				talk[i] = false;
+				break;
+			}
+			else if(list.substr(startpos + 20, 1) == "0")
 			{
 				talk[i] = false;
 			}
@@ -150,12 +205,12 @@ void RunOverlay(char* adrs)
 			}
 			list = list.substr(startpos+25);
 		}
-
+		
 		//print client list
 		fOverlay.open(path);
 		for(int i = 0; i < 10; i++)
 		{
-			if(name[i].substr(0, 4) == "inpu")
+			if(name[i] == "")
 			{
 				break;
 			}
@@ -174,6 +229,7 @@ void RunOverlay(char* adrs)
 		fOverlay.close();
 
 		//reset variables
+		memset(reci1, 0, 256);
 		memset(reci2, 0, 64);
 		memset(reci3, 0, 4096);
 		cid.clear();
@@ -188,27 +244,12 @@ void RunOverlay(char* adrs)
 		startpos = 0;
 		endpos = 0;
 		tempstr.clear();
-	}
 
-	memset(reci1, 0, 256);
-	char *quit = "quit\n";
-
-	iResult = send(overlay, quit, (int)strlen(quit), 0);	//send channelcli...
-	if (iResult == SOCKET_ERROR)
-	{
-		AppWarning(TEXT("Overlay: quit Send Failure"));
 		CloseConnection(overlay);
-		return;
-	}
-	Sleep(10);					//allows full list to be generated and limits loop rate
-	iResult = recv(overlay, reci1, 256 ,0);					//recieve channelcli...
-	if (iResult == SOCKET_ERROR)
-	{
-		AppWarning(TEXT("Overlay: quit Recieve Failure"));
-		CloseConnection(overlay);
-		return;
+
+skip:
+		Sleep(100);
 	}
 
-	CloseConnection(overlay);
 	return;
 }
