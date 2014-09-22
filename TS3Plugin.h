@@ -24,9 +24,9 @@ bool ConnectToHost(int, char*, SOCKET&);
 void CloseConnection(SOCKET&);
 
 char* getIP();
-bool Communicate(int);
-bool MuteandDeafen(int);
-bool ChannelSwitch(int);
+bool Communicate(int, SOCKET&);
+bool MuteandDeafen(int, SOCKET&);
+bool ChannelSwitch(int, SOCKET&);
 int countSubstring(const std::string&, const std::string&);
 
 void ShutdownOverlay();

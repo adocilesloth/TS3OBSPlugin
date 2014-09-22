@@ -57,6 +57,10 @@ void RunOverlay(char* adrs)
 	bool skipname = false;
 	bool discon = true;
 	bool noserv = true;
+	bool rename = true;
+	bool bCom = false;
+	bool bMnD = false;
+	bool bSwt = false;
 
 	//File stuff
 	wstring path = OBSGetPluginDataPath().Array();
@@ -76,6 +80,11 @@ void RunOverlay(char* adrs)
 			{
 				AppWarning(TEXT("Overlay: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
 				discon = false;
+				//force Communicate, MuteandDeafen and ChannelSwitch
+				bCom = false;
+				bMnD = false;
+				bSwt = false;
+				rename = true;
 			}
 			fOverlay.open(path);		//empty client list text file if not connected
 			fOverlay.close();
@@ -116,6 +125,11 @@ void RunOverlay(char* adrs)
 			{
 				AppWarning(TEXT("Overlay: Not Connected to TS3 Server"));
 				noserv = false;
+				//force Communicate, MuteandDeafen and ChannelSwitch
+				bCom = false;
+				bMnD = false;
+				bSwt = false;
+				rename = true;
 			}
 			CloseConnection(overlay);
 			fOverlay.open(path);			//empty client list text file if not on server
@@ -244,6 +258,29 @@ void RunOverlay(char* adrs)
 		startpos = 0;
 		endpos = 0;
 		tempstr.clear();
+
+		if(rename)
+		{
+			if(!bCom)
+			{
+				bCom = Communicate(1, overlay);
+			}
+			if(!bMnD)
+			{
+				bMnD = MuteandDeafen(1, overlay);
+			}
+			if(!bSwt)
+			{
+				bSwt = ChannelSwitch(1, overlay);
+			}
+			if(bCom && bMnD && bSwt)
+			{
+				bCom = false;
+				bMnD = false;
+				bSwt = false;
+				rename = false;
+			}
+		}
 
 		CloseConnection(overlay);
 

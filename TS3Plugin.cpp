@@ -12,7 +12,7 @@ using namespace std;
 
 int countSubstring(const string&, const string&);
 
-SOCKET obs;
+//SOCKET obs;
 //ofstream file;
 ifstream settings;
 
@@ -27,6 +27,8 @@ HANDLE OvrThread;
 
 INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	SOCKET obs;
+
 	string sip, suid, spref, smute, schan, spw;		//temp strings
 
 	wstring wip, wuid, wpref, wcid, wpw;	//sending strings
@@ -404,19 +406,8 @@ CTSTR GetPluginDescription()
 void OnStartStream()
 {
 	char *adrs = getIP();
-	bool start;
 
 	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, 0);
-
-	if(!ConnectToHost(25639, adrs, obs))
-	{
-		AppWarning(TEXT("StartStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
-		return;
-	}
-	start = Communicate(1);
-	start = MuteandDeafen(1);
-	start = ChannelSwitch(1);
-	CloseConnection(obs);
 
 	return;
 }
@@ -425,6 +416,7 @@ void OnStopStream()
 {
 	char *adrs = getIP();
 	bool stop;
+	SOCKET obs;
 
 	ShutdownOverlay();
 	WaitForSingleObject(OvrThread, INFINITE);
@@ -435,9 +427,9 @@ void OnStopStream()
 		AppWarning(TEXT("StopStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
 		return;
 	}
-	stop = Communicate(0);
-	stop = MuteandDeafen(0);
-	stop = ChannelSwitch(0);
+	stop = Communicate(0, obs);
+	stop = MuteandDeafen(0, obs);
+	stop = ChannelSwitch(0, obs);
 	CloseConnection(obs);
 
 	return;
@@ -458,7 +450,7 @@ char* getIP()
 	return IPadrs;
 }
 
-bool Communicate(int cont)
+bool Communicate(int cont, SOCKET &obs)
 {
 	int iResult;
 	char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
@@ -469,11 +461,6 @@ bool Communicate(int cont)
 	char reci3[256];
 	char reci4[256];
 	string space = "\\s";
-
-	int i = 0;	//break while loop counter for reci2
-	string truereci2 = "Welcome to";	//bad string for reci2
-	int j = 0;	//break while loop counter for reci3
-	string truereci3 = "error id=0";	//bad string for reci3
 
 	//debug file
 	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
@@ -497,69 +484,47 @@ bool Communicate(int cont)
 	tempgetname.append("\n");
 	const char *getname = tempgetname.c_str();
 
-	iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
+	if(cont != 1)
+	{
+		iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("Communicate: First Recieve Failure"));
+			settings.close();
+			return false;
+		}
+	}
+
+	//notifyregister
+	iResult = send(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
 	if (iResult == SOCKET_ERROR)
 	{
-		AppWarning(TEXT("First Recieve Failure"));
+		AppWarning(TEXT("Communicate: notifyregister Send Failure"));
+		settings.close();
+		return false;
+	}
+	Sleep(5);
+	iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
+	if (iResult == SOCKET_ERROR)
+	{
+		AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
 		settings.close();
 		return false;
 	}
 
-	do
+	//clientnamefromuid
+	iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
+	if (iResult == SOCKET_ERROR)
 	{
-		iResult = send(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("First Send Failure"));
-			settings.close();
-			return false;
-		}
-
-		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("Second Recieve Failure"));
-			settings.close();
-			return false;
-		}
-
-		truereci2 = reci2;
-		truereci2 = truereci2.substr(0, 10);
-		i++;
-	}while (truereci2 == "Welcome to" && i < 10);	//while reci2 returns the wrong string
-
-	if (truereci2 == "Welcome to")	//fail request notifyregister...
-	{
-		AppWarning(TEXT("clientnotifyregister failed after 10 tries"));
+		AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
 		settings.close();
 		return false;
 	}
-
-	do
+	Sleep(5);
+	iResult = recv(obs, reci3, 256, 0);	//recieve name
+	if (iResult == SOCKET_ERROR)
 	{
-		iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("Second Send Failure"));
-			settings.close();
-			return false;
-		}
-
-		iResult = recv(obs, reci3, 256, 0);	//recieve name
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("Third Recieve Failure"));
-			settings.close();
-			return false;
-		}
-		truereci3 = reci3;
-		truereci3 = truereci3.substr(0, 10);
-		j++;
-	} while (truereci3 == "error id=0" && j < 10);	//while reci3 returns the wrong string
-
-	if (truereci3 == "error id=0")	//fail request clientnamefromuid
-	{
-		AppWarning(TEXT("clientgetnamefromuid failed after 10 tries"));
+		AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
 		settings.close();
 		return false;
 	}
@@ -568,6 +533,10 @@ bool Communicate(int cont)
 	string identstart = "name=";
 	string name = reci3;
 	size_t startpos = name.find(identstart);	//start of name
+	if(startpos == -1)
+	{
+		return false;
+	}
 	int count = countSubstring(name, space);	//number of \s
 	name = name.substr(startpos+5 , 30 + count);
 	//get name end
@@ -630,18 +599,19 @@ bool Communicate(int cont)
 	const string tmp = newname.str();	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
 
+	//clientupdate
 	iResult = send(obs, recname, (int)strlen(recname), 0);
 	if (iResult == SOCKET_ERROR)
 	{
-		AppWarning(TEXT("Third Send Failure"));
+		AppWarning(TEXT("Communicate: clientupdate Send Failure"));
 		settings.close();
 		return false;
 	}
-
+	Sleep(5);
 	iResult = recv(obs, reci4, 256 ,0);
 	if (iResult == SOCKET_ERROR)
 	{
-		AppWarning(TEXT("Fourth Recieve Failure"));
+		AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
 		settings.close();
 		return false;
 	}
@@ -651,7 +621,7 @@ bool Communicate(int cont)
 	return true;
 }
 
-bool MuteandDeafen(int state)
+bool MuteandDeafen(int state, SOCKET &obs)
 {
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
@@ -678,77 +648,59 @@ bool MuteandDeafen(int state)
 
 	if(mnd == "1" || mnd == "3")	//if set to mute
 	{
-		char reci1[256];
-		int i = 0;
-		string truereci1;
+		char reci1[256];;
 
 		string tempmute = "clientupdate client_input_muted=";
 		tempmute.append(sstate.str());
 		const char *mute = tempmute.c_str();
 
-		do
+		iResult = send(obs, mute, (int)strlen(mute), 0);	//set mute
+		if (iResult == SOCKET_ERROR)
 		{
-			iResult = send(obs, mute, (int)strlen(mute), 0);	//set mute
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Mute Send Failure"));
-				settings.close();
-				return false;
-			}
-
-			iResult = recv(obs, reci1, 256, 0);	//recieve result: error id=0...
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Mute Recieve Failure"));
-				settings.close();
-				return false;
-			}
-
-			truereci1 = reci1;
-			truereci1 = truereci1.substr(0, 10);
-			i++;
-		}while (truereci1 != "error id=0" && i < 10);
+			AppWarning(TEXT("MuteandDeafen: Mute Send Failure"));
+			settings.close();
+			return false;
+		}
+		Sleep(5);
+		iResult = recv(obs, reci1, 256, 0);	//recieve result: error id=0...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("MuteandDeafen: Mute Recieve Failure"));
+			settings.close();
+			return false;
+		}
 	}
 
 	if(mnd == "2" || mnd == "3")
 	{
 		char reci2[256];
-		int j = 0;
-		string truereci2;
 	
 		string tempdeaf = "clientupdate client_output_muted=";
 		tempdeaf.append(sstate.str());
 		const char *deaf = tempdeaf.c_str();
 
-		do
+		iResult = send(obs, deaf, (int)strlen(deaf), 0);	//set deafen
+		if (iResult == SOCKET_ERROR)
 		{
-			iResult = send(obs, deaf, (int)strlen(deaf), 0);	//set deafen
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Deaf Send Failure"));
-				settings.close();
-				return false;
-			}
-
-			iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Deaf Recieve Failure"));
-				settings.close();
-				return false;
-			}
-
-			truereci2 = reci2;
-			truereci2 = truereci2.substr(0, 10);
-			j++;
-		}while (truereci2 != "error id=0" && j < 10);
+			AppWarning(TEXT("MuteandDeafen: Deaf Send Failure"));
+			settings.close();
+			return false;
+		}
+		Sleep(5);
+		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("MuteandDeafen: Deaf Recieve Failure"));
+			settings.close();
+			return false;
+		}
 	}
 	
 	settings.close();
 	return true;
 }
 
-bool ChannelSwitch(int state)
+bool ChannelSwitch(int state, SOCKET &obs)
 {
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
@@ -765,58 +717,60 @@ bool ChannelSwitch(int state)
 	swtch.clear();
 	getline(settings, swtch);		//switch state
 
-	if(swtch != "1")	//if not set to mute or deafen
+	if(swtch != "1")	//if not set to switch
 	{
 		settings.close();
 		return true;
 	}
 
 	int iResult;
-	int i = 0;
 	char *whoami = "whoami\n";
 	char reci[256];
 	string truereci, tcid, rcid, clid, cpw;
 
-	do
+	iResult = send(obs, whoami, (int)strlen(whoami), 0);	//request whoami
+	if (iResult == SOCKET_ERROR)
 	{
-		iResult = send(obs, whoami, (int)strlen(whoami), 0);	//request whoami
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("whoami Send Failure"));
-			settings.close();
-			return false;
-		}
-
-		iResult = recv(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("whoami Recieve Failure"));
-			settings.close();
-			return false;
-		}
-
-		truereci = reci;
-		truereci = truereci.substr(0, 5);
-		i++;
-	}while (truereci != "clid=" && i < 10);	//while reci returns the wrong string
+		AppWarning(TEXT("ChannelSwitch: whoami Send Failure"));
+		settings.close();
+		return false;
+	}
+	Sleep(5);
+	iResult = recv(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
+	if (iResult == SOCKET_ERROR)
+	{
+		AppWarning(TEXT("ChannelSwitch: whoami Recieve Failure"));
+		settings.close();
+		return false;
+	}
 
 	clid = reci;
 	size_t space = clid.find("cid=");
+	if(space == -1)
+	{
+		return false;
+	}
 	clid = clid.substr(0, space);
 
 	string channel = "clientmove ";
 	channel.append(clid);
 
-	int j = 0;
 	char reci2[256];
-	string truereci2;
 
 	if(state == 1)	//switch to channel
 	{
 		//write return cid to file
 		rcid = reci;
 		size_t startpos = rcid.find("cid=");
+		if(startpos == -1)
+		{
+			return false;
+		}
 		size_t endpos = rcid.find("\n");
+		if(endpos - startpos < 0)
+		{
+			return false;
+		}
 		rcid = rcid.substr(startpos, endpos - startpos);
 
 		ofstream rturn(path + L"\\ts3temp.ini");
@@ -831,30 +785,22 @@ bool ChannelSwitch(int state)
 		channel.append("\n");
 		const char *move = channel.c_str();
 
-		do
+		iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
+		if (iResult == SOCKET_ERROR)
 		{
-			iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Move Send Failure"));
-				settings.close();
-				return false;
-			}
-
-			iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Move Recieve Failure"));
-				settings.close();
-				return false;
-			}
-
-			truereci2 = reci2;
-			truereci2 = truereci2.substr(0, 10);
-			j++;
-		}while (truereci2 != "error id=0" && j < 10);
+			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
+			settings.close();
+			return false;
+		}
+		Sleep(5);
+		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
+			settings.close();
+			return false;
+		}
 	}
-
 	else	//switch back
 	{
 		//get return cid
@@ -863,7 +809,15 @@ bool ChannelSwitch(int state)
 		{
 			rcid = reci;
 			size_t startpos = rcid.find("cid=");
+			if(startpos == -1)
+			{
+				return false;
+			}
 			size_t endpos = rcid.find("\n");
+			if(endpos - startpos < 0)
+			{
+				return false;
+			}
 			rcid = rcid.substr(startpos, endpos - startpos);	
 		}
 		else
@@ -876,28 +830,21 @@ bool ChannelSwitch(int state)
 		channel.append("\n");
 		const char *move = channel.c_str();
 
-		do
+		iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
+		if (iResult == SOCKET_ERROR)
 		{
-			iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Move Send Failure"));
-				settings.close();
-				return false;
-			}
-
-			iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Move Recieve Failure"));
-				settings.close();
-				return false;
-			}
-
-			truereci2 = reci2;
-			truereci2 = truereci2.substr(0, 10);
-			j++;
-		}while (truereci2 != "error id=0" && j < 10);
+			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
+			settings.close();
+			return false;
+		}
+		Sleep(5);
+		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
+		if (iResult == SOCKET_ERROR)
+		{
+			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
+			settings.close();
+			return false;
+		}
 	}
 
 	settings.close();
