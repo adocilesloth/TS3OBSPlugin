@@ -1,4 +1,4 @@
-/*****************************
+﻿/*****************************
 2014 <adocilesloth@gmail.com>
 *****************************/
 #include "TS3Plugin.h"
@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <codecvt>
 
 using namespace std;
 
@@ -14,12 +15,12 @@ int countSubstring(const string&, const string&);
 
 //SOCKET obs;
 //ofstream file;
-ifstream settings;
+wifstream settings;
 
 //config popout stuff
 HINSTANCE   hInstance;
 //cid for config
-string cid;
+wstring cid;
 bool bprefix;
 
 //Overlay Stuff
@@ -27,46 +28,48 @@ HANDLE OvrThread;
 
 INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 	SOCKET obs;
 
-	string sip, suid, spref, smute, schan, spw;		//temp strings
+	//string sip, suid, spref, smute, schan, spw;		//temp strings
 
-	wstring wip, wuid, wpref, wcid, wpw;	//sending strings
+	wstring wip, wuid, wpref, wmute, wchan, wcid, wpw;	//sending strings
 
 	bool bmute, bdeaf, bchan;		//bools for checkboxes
 	int length;
 	wstring path = OBSGetPluginDataPath().Array();
 	wofstream osettings;
+	osettings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff,std::generate_header>));
 	
 	//get current information
 	settings.open(path + L"\\ts3.ini");
 
-	getline(settings, sip);
-	wip = wstring(sip.begin(), sip.end());
+	getline(settings, wip);
+	//wip = wstring(sip.begin(), sip.end());
 
-	getline(settings, suid);
-	suid = suid.substr(6, suid.length() - 6);	//remove cluid=
-	wuid = wstring(suid.begin(), suid.end());
+	getline(settings, wuid);
+	wuid = wuid.substr(6, wuid.length() - 6);	//remove cluid=
+	//wuid = wstring(suid.begin(), suid.end());
 
-	getline(settings, spref);
-	if (spref.length() > 10)
+	getline(settings, wpref);
+	if (wpref.length() > 10)
 	{
-		spref = spref.substr(0, 10);
+		wpref = wpref.substr(0, 10);
 	}
-	wpref = wstring(spref.begin(), spref.end());
+	//wpref = wstring(spref.begin(), spref.end());
 
-	getline(settings, smute);
-	if(smute == "1")
+	getline(settings, wmute);
+	if(wmute == L"1")
 	{
 		bmute = true;
 		bdeaf = false;
 	}
-	else if(smute == "2")
+	else if(wmute == L"2")
 	{
 		bmute = false;
 		bdeaf = true;
 	}
-	else if(smute == "3")
+	else if(wmute == L"3")
 	{
 		bmute = true;
 		bdeaf = true;
@@ -77,8 +80,8 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		bdeaf = false;
 	}
 
-	getline(settings, schan);
-	if(schan == "1")
+	getline(settings, wchan);
+	if(wchan == L"1")
 	{
 		bchan = true;
 	}
@@ -87,11 +90,11 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		bchan = false;
 	}
 
-	getline(settings, spw);		//gets cid=..
-	spw.clear();				//so delete it
-	getline(settings, spw);		//gets cpw
-	spw = spw.substr(5, spw.length() - 5);	//remove  cpw=
-	wpw = wstring(spw.begin(), spw.end());
+	getline(settings, wpw);		//gets cid=..
+	wpw.clear();				//so delete it
+	getline(settings, wpw);		//gets cpw
+	wpw = wpw.substr(5, wpw.length() - 5);	//remove  cpw=
+	//wpw = wstring(spw.begin(), spw.end());
 
 	settings.close();
 
@@ -113,7 +116,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		SendMessage(PREFInput, EM_LIMITTEXT, 10, 0);	//limit prefix to 10 chars
 		if(wpref.length() != 0)
 		{
-			SetWindowText(PREFInput, wpref.c_str());
+			SetWindowTextW(PREFInput, wpref.c_str());
 		}
 		SendMessage(GetDlgItem(hWnd, MUTChk), BM_SETCHECK, bmute ? BST_CHECKED : BST_UNCHECKED, 0);
 		SendMessage(GetDlgItem(hWnd, DEFChk), BM_SETCHECK, bdeaf ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -127,7 +130,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		if(wpw.length() != 0)
 		{
 			HWND PWInput = GetDlgItem(hWnd, PWEdt);
-			SetWindowText(PWInput, wpw.c_str());
+			SetWindowTextW(PWInput, wpw.c_str());
 		}
 		if(!bprefix)
 		{
@@ -171,14 +174,14 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			length = GetWindowTextLength(UIDOutput) + 1;
 			TCHAR * uidbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
 			GetWindowText(UIDOutput, uidbuf, length);
-			osettings << "cluid="
+			osettings << L"cluid="
 					  << uidbuf << endl;	//write to file
 			GlobalFree(uidbuf);				//clear buffer
 			//prefix
 			HWND PREFOutput = GetDlgItem(hWnd, PREFEdt);
 			length = GetWindowTextLength(PREFOutput) + 1;
 			TCHAR * prefbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
-			GetWindowText(PREFOutput, prefbuf, length);
+			GetWindowTextW(PREFOutput, prefbuf, length);
 			osettings << prefbuf << endl;	//write to file
 			GlobalFree(prefbuf);			//clear buffer
 			//mute and deafened
@@ -186,29 +189,29 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			bdeaf = SendMessage(GetDlgItem(hWnd, DEFChk), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			if(!bmute && !bdeaf)
 			{
-				osettings << "0" << endl;
+				osettings << L"0" << endl;
 			}
 			else if(bmute && !bdeaf)
 			{
-				osettings << "1" << endl;
+				osettings << L"1" << endl;
 			}
 			else if(!bmute && bdeaf)
 			{
-				osettings << "2" << endl;
+				osettings << L"2" << endl;
 			}
 			else if(bmute && bdeaf)
 			{
-				osettings << "3" << endl;
+				osettings << L"3" << endl;
 			}
 			//channel switch
 			bchan = SendMessage(GetDlgItem(hWnd, CHANChk), BM_GETCHECK, 0, 0) == BST_CHECKED;
 			if(bchan)
 			{
-				osettings << "1" << endl;
+				osettings << L"1" << endl;
 			}
 			else
 			{
-				osettings << "0" << endl;
+				osettings << L"0" << endl;
 			}
 			//cid
 			wcid = wstring(cid.begin(), cid.end());
@@ -218,7 +221,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			length = GetWindowTextLength(PWOutput) + 1;
 			TCHAR * pwbuf = (TCHAR *)GlobalAlloc(GPTR, length * sizeof(TCHAR));
 			GetWindowText(PWOutput, pwbuf, length);
-			osettings << " cpw="
+			osettings << L" cpw="
 					  << pwbuf << endl;	//write to file
 			GlobalFree(pwbuf);			//clear buffer
 
@@ -267,7 +270,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			int i = 0;
 			char *whoami = "whoami\n";
 			char reci[256];
-			string truereci;
+			string truereci, scid;
 
 			do
 			{
@@ -295,9 +298,10 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 				break;
 			}
 
-			cid = reci;
-			size_t startpos = cid.find("cid=");
-			size_t endpos = cid.find("\n");
+			scid = reci;
+			cid = s2ws(scid);
+			size_t startpos = cid.find(L"cid=");
+			size_t endpos = cid.find(L"\n");
 			cid = cid.substr(startpos, endpos - startpos);
 
 			CloseConnection(obs);
@@ -339,6 +343,7 @@ void ConfigPlugin(HWND hWnd)
 
 bool LoadPlugin()
 {
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 
 	OBSRegisterImageSourceClass(L"OverlaySource", L"TeamSpeak 3 Overlay", (OBSCREATEPROC)CreateOverlaySource, (OBSCONFIGPROC)ConfigureOverlaySource);
 
@@ -347,18 +352,19 @@ bool LoadPlugin()
 
 	if (!settings.is_open())
 	{
-		ofstream create(path + L"\\ts3.ini");
-		create << "127.0.0.1" << endl;
-		create << "cluid=" << endl;
-		create << "*R*" << endl;
-		create << "0" << endl;
-		create << "0" << endl;
-		create << "cid=1" << endl;
-		create << " cpw=" << endl;
-		create << "1";
+		wofstream create(path + L"\\ts3.ini");
+		create.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff,std::generate_header>));
+		create << L"127.0.0.1" << endl;
+		create << L"cluid=" << endl;
+		create << L"*R*" << endl;
+		create << L"0" << endl;
+		create << L"0" << endl;
+		create << L"cid=1" << endl;
+		create << L" cpw=" << endl;
+		create << L"1";
 		create.close();		//stop using settings file
 
-		cid = "cid=1";		//set cid string
+		cid = L"cid=1";		//set cid string
 		bprefix = 1;
 	}
 	else
@@ -367,7 +373,7 @@ bool LoadPlugin()
 		{
 			getline(settings, cid);	//set cid string
 		}
-		string tmp;
+		wstring tmp;
 		getline(settings, tmp);	//get rid of " cpw="
 		settings >> bprefix;	//get if prefix or suffix
 		settings.close();		//stop using settings file
@@ -383,13 +389,12 @@ void UnloadPlugin()
 	wstring path = OBSGetPluginDataPath().Array();
 	path.append(L"/ts3temp.ini");
 	//test if ts3temp.ini exists. If yes, delete
-	settings.open(path);
-	if(settings.is_open())
+	ofstream ssettings;
+	ssettings.open(path);
+	if(ssettings.is_open())
 	{
-		settings.close();
-		stringstream spath;
-		spath << path.c_str();
-		remove(spath.str().c_str());
+		ssettings.close();
+		_wremove(path.c_str());
 	}
 }
 
@@ -437,12 +442,15 @@ void OnStopStream()
 
 char* getIP()
 {
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
+
 	wstring path = OBSGetPluginDataPath().Array();
-	string IPadrsstr;
+	wstring wIPadrsstr;
 
 	settings.open(path + L"\\ts3.ini");
+	getline(settings, wIPadrsstr);
 
-	getline(settings, IPadrsstr);
+	string IPadrsstr(wIPadrsstr.begin(), wIPadrsstr.end());
 	char *IPadrs = new char[IPadrsstr.length() + 1];
 	strcpy(IPadrs, IPadrsstr.c_str());
 
@@ -452,36 +460,40 @@ char* getIP()
 
 bool Communicate(int cont, SOCKET &obs)
 {
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
+
 	int iResult;
 	char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
-	stringstream newname;
-	newname << "clientupdate client_nickname=";
+	wstringstream wnewname;
+	wnewname << L"clientupdate client_nickname=";
 	char reci1[256];
 	char reci2[256];
 	char reci3[256];
 	char reci4[256];
 	string space = "\\s";
+	wstring wspace = L"\\s";
 
 	//debug file
-	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
+	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.ini");
 
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
-	//get cluid and recording prefix from ts3.txt
+	//get cluid and recording prefix from ts3.ini
 	settings.open(path + L"\\ts3.ini");
-	string cluid;
+	wstring cluid;
 	getline(settings, cluid);	//first line is ip address
 	cluid.clear();				//so we don't want it
 	getline(settings, cluid);
-	string rec;
+	wstring rec;
 	getline(settings, rec);
-	ReplaceAll(rec, " ", space);		//replace spaces with \s
-	int modcount = countSubstring(rec, space);	//number of \s
+	wReplaceAll(rec, L" ", wspace);		//replace spaces with \s
+	int modcount = wcountSubstring(rec, wspace);	//number of \s
 
 	//set up the getname call
-	string tempgetname = "clientgetnamefromuid ";
-	tempgetname.append(cluid);
-	tempgetname.append("\n");
+	wstring wtempgetname = L"clientgetnamefromuid ";
+	wtempgetname.append(cluid);
+	wtempgetname.append(L"\n");
+	string tempgetname(wtempgetname.begin(), wtempgetname.end());
 	const char *getname = tempgetname.c_str();
 
 	if(cont != 1)
@@ -530,73 +542,75 @@ bool Communicate(int cont, SOCKET &obs)
 	}
 
 	//get name
-	string identstart = "name=";
+	wstring identstart = L"name=";
 	string name = reci3;
-	size_t startpos = name.find(identstart);	//start of name
+	wstring wname = s2ws(name);
+
+	size_t startpos = wname.find(identstart);	//start of name
 	if(startpos == -1)
 	{
 		return false;
 	}
-	int count = countSubstring(name, space);	//number of \s
-	name = name.substr(startpos+5 , 30 + count);
+	int count = wcountSubstring(wname, wspace);	//number of \s
+	wname = wname.substr(startpos+5 , 30 + count);
 	//get name end
 
 	if(!bprefix)	//if using suffix
 	{
-		size_t spc = name.find("\n");
-		name = name.substr(0, spc);
-		int nstrt = name.length();
+		size_t spc = wname.find(L"\n");
+		wname = wname.substr(0, spc);
+		int nstrt = wname.length();
 		nstrt = nstrt - rec.length();
 		if(nstrt < 0)
 		{
 			nstrt = 0;
 		}
-		int nlen = name.length() - count;
+		int nlen = wname.length() - count;
 
 		if(cont == 1)			//adding modifier
 		{
-			if(name.substr(nstrt) != rec)
+			if(wname.substr(nstrt) != rec)
 			{
 				if(nlen > 30)
 				{
-					name = name.substr(0, 30 + count - rec.length());
+					wname = wname.substr(0, 30 + count - rec.length());
 				}
-				newname << name
-						<< rec << "\n";		//finish name set string
+				wnewname << wname
+						 << rec << L"\n";		//finish name set string
 			}
 		}
 		else if(cont == 0)		//removing modifier
 		{
-			if(name.substr(nstrt) == rec)
+			if(wname.substr(nstrt) == rec)
 			{
-				name = name.substr(0, nlen + count - rec.length());
+				wname = wname.substr(0, nlen + count - rec.length());
 			}
-			newname << name << "\n";		//finish name set string
+			wnewname << wname << L"\n";		//finish name set string
 		}
 	}
 	else	//if using prefix
 	{
 		if(cont == 1)			//adding modifier
 		{
-			if(name.substr(0, rec.length()) != rec)
+			if(wname.substr(0, rec.length()) != rec)
 			{
-				name = name.substr(0, 30 + count - rec.length());
-				newname << rec
-						<< name << "\n";	//finish name set string
+				wname = wname.substr(0, 30 + count - rec.length());
+				wnewname << rec
+						 << wname << L"\n";	//finish name set string
 			}
 		}
 		else if(cont == 0)		//removing modifier
 		{
-			if(name.substr(0, rec.length()) == rec)
+			if(wname.substr(0, rec.length()) == rec)
 			{
-				name = name.substr(rec.length(), 30 + count - modcount - rec.length());
+				wname = wname.substr(rec.length(), 30 + count - modcount - rec.length());
 			}
 		}
-		newname << name << "\n";			//finish name set string
+		wnewname << wname << L"\n";			//finish name set string
 	}
 
 
-	const string tmp = newname.str();	//set name to string
+	const string tmp = ws2s(wnewname.str());	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
 
 	//clientupdate
@@ -623,11 +637,13 @@ bool Communicate(int cont, SOCKET &obs)
 
 bool MuteandDeafen(int state, SOCKET &obs)
 {
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
+
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
 	//get mute and deafen settings from ts3.ini
 	settings.open(path + L"\\ts3.ini");
-	string mnd;
+	wstring mnd;
 	getline(settings, mnd);		//ip
 	mnd.clear();
 	getline(settings, mnd);		//cluid
@@ -636,7 +652,7 @@ bool MuteandDeafen(int state, SOCKET &obs)
 	mnd.clear();
 	getline(settings, mnd);		//mute and deafened state
 
-	if(mnd != "1" && mnd != "2" && mnd != "3")	//if not set to mute or deafen
+	if(mnd != L"1" && mnd != L"2" && mnd != L"3")	//if not set to mute or deafen
 	{
 		settings.close();
 		return true;
@@ -646,7 +662,7 @@ bool MuteandDeafen(int state, SOCKET &obs)
 	stringstream sstate;
 	sstate << state << "\n";
 
-	if(mnd == "1" || mnd == "3")	//if set to mute
+	if(mnd == L"1" || mnd == L"3")	//if set to mute
 	{
 		char reci1[256];;
 
@@ -671,7 +687,7 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		}
 	}
 
-	if(mnd == "2" || mnd == "3")
+	if(mnd == L"2" || mnd == L"3")
 	{
 		char reci2[256];
 	
@@ -702,24 +718,26 @@ bool MuteandDeafen(int state, SOCKET &obs)
 
 bool ChannelSwitch(int state, SOCKET &obs)
 {
+	ifstream ssettings;
+	ssettings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
 	//get mute and deafen settings from ts3.ini
-	settings.open(path + L"\\ts3.ini");
+	ssettings.open(path + L"\\ts3.ini");
 	string swtch;
-	getline(settings, swtch);		//ip
+	getline(ssettings, swtch);		//ip
 	swtch.clear();
-	getline(settings, swtch);		//cluid
+	getline(ssettings, swtch);		//cluid
 	swtch.clear();
-	getline(settings, swtch);		//prefix
+	getline(ssettings, swtch);		//prefix
 	swtch.clear();
-	getline(settings, swtch);		//mute and deafened state
+	getline(ssettings, swtch);		//mute and deafened state
 	swtch.clear();
-	getline(settings, swtch);		//switch state
+	getline(ssettings, swtch);		//switch state
 
 	if(swtch != "1")	//if not set to switch
 	{
-		settings.close();
+		ssettings.close();
 		return true;
 	}
 
@@ -732,7 +750,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Send Failure"));
-		settings.close();
+		ssettings.close();
 		return false;
 	}
 	Sleep(5);
@@ -740,7 +758,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Recieve Failure"));
-		settings.close();
+		ssettings.close();
 		return false;
 	}
 
@@ -748,6 +766,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 	size_t space = clid.find("cid=");
 	if(space == -1)
 	{
+		ssettings.close();
 		return false;
 	}
 	clid = clid.substr(0, space);
@@ -764,11 +783,13 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		size_t startpos = rcid.find("cid=");
 		if(startpos == -1)
 		{
+			ssettings.close();
 			return false;
 		}
 		size_t endpos = rcid.find("\n");
 		if(endpos - startpos < 0)
 		{
+			ssettings.close();
 			return false;
 		}
 		rcid = rcid.substr(startpos, endpos - startpos);
@@ -778,8 +799,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		rturn.close();
 
 		//move channel
-		getline(settings, tcid);
-		getline(settings, cpw);
+		getline(ssettings, tcid);
+		getline(ssettings, cpw);
 		channel.append(tcid);
 		channel.append(cpw);
 		channel.append("\n");
@@ -789,7 +810,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
-			settings.close();
+			ssettings.close();
 			return false;
 		}
 		Sleep(5);
@@ -797,7 +818,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
-			settings.close();
+			ssettings.close();
 			return false;
 		}
 	}
@@ -811,11 +832,13 @@ bool ChannelSwitch(int state, SOCKET &obs)
 			size_t startpos = rcid.find("cid=");
 			if(startpos == -1)
 			{
+				ssettings.close();
 				return false;
 			}
 			size_t endpos = rcid.find("\n");
 			if(endpos - startpos < 0)
 			{
+				ssettings.close();
 				return false;
 			}
 			rcid = rcid.substr(startpos, endpos - startpos);	
@@ -834,7 +857,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
-			settings.close();
+			ssettings.close();
 			return false;
 		}
 		Sleep(5);
@@ -842,17 +865,32 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
-			settings.close();
+			ssettings.close();
 			return false;
 		}
 	}
 
-	settings.close();
+	ssettings.close();
 	return true;
 }
 
 // returns count of non-overlapping occurrences of 'sub' in 'str'
 int countSubstring(const string& str, const string& sub)
+{
+	if (sub.length() == 0 || str.length() < sub.length())
+	{
+		return 0;
+	}
+
+	int count = 0;
+	for (size_t offset = str.find(sub); offset != std::string::npos; offset = str.find(sub, offset + sub.length()))
+	{
+		count++;
+	}
+	return count;
+}
+
+int wcountSubstring(const wstring& str, const wstring& sub)
 {
 	if (sub.length() == 0 || str.length() < sub.length())
 	{
@@ -890,4 +928,31 @@ void ReplaceAll(string &str, const string& from, const string& to)
         start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
     }
     return;
+}
+
+void wReplaceAll(wstring &str, const wstring& from, const wstring& to)
+{
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != string::npos)
+	{
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    return;
+}
+
+wstring s2ws(const string& str)
+{
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    wstring wstrTo( size_needed, 0 );
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    return wstrTo;
+}
+
+string ws2s(const wstring& wstr)
+{
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo( size_needed, 0 );
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
 }

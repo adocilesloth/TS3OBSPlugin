@@ -28,6 +28,7 @@ bool Communicate(int, SOCKET&);
 bool MuteandDeafen(int, SOCKET&);
 bool ChannelSwitch(int, SOCKET&);
 int countSubstring(const std::string&, const std::string&);
+int wcountSubstring(const std::wstring&, const std::wstring&);
 
 void ShutdownOverlay();
 void ResetOverlay();
@@ -36,3 +37,7 @@ void RunOverlay(char*);
 HINSTANCE GetHinstance();
 
 void ReplaceAll(std::string&, const std::string&, const std::string&);
+void wReplaceAll(std::wstring&, const std::wstring&, const std::wstring&);
+
+std::wstring s2ws(const std::string&);
+std::string ws2s(const std::wstring&);

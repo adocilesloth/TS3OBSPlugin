@@ -43,16 +43,20 @@ void RunOverlay(char* adrs)
 
 	//string location
 	string identstart;
+	wstring widentstart;
 	string identend;
-	string talkstart = "client_flag_talking=";
+	wstring widentend;
+	wstring talkstart = L"client_flag_talking=";
 	size_t startpos;
 	size_t endpos;
 	string tempstr;
+	wstring wtempstr;
 
 	//useful things
 	string cid;
 	string list;
-	string name[10];
+	wstring wlist;
+	wstring name[10];
 	bool talk[10] = {0};
 	bool skipname = false;
 	bool discon = true;
@@ -177,58 +181,59 @@ void RunOverlay(char* adrs)
 			goto skip;
 		}
 
-		identstart = "name=";
-		identend = "client_type";
+		widentstart = L"name=";
+		widentend = L"client_type";
 		list = reci3;
+		wlist = s2ws(list);
 		//generate client list
 		for(int i = 0; i < 10; i++)
 		{
-			startpos = list.find(identstart);
+			startpos = wlist.find(widentstart);
 			if(startpos == -1)
 			{
 				skipname = true;
 			}
-			endpos = list.find(identend);
+			endpos = wlist.find(widentend);
 			if(endpos < 0)
 			{
 				skipname = true;
 			}
 			if(!skipname)
 			{
-				tempstr = list.substr(startpos + 5, endpos-startpos-6);
-				name[i] = tempstr;
+				wtempstr = wlist.substr(startpos + 5, endpos-startpos-6);
+				name[i] = wtempstr;
 			}
 			else
 			{
-				name[i] = "";
+				name[i] = L"";
 				skipname = false;
 			}
-			startpos = list.find(talkstart);
+			startpos = wlist.find(talkstart);
 			if(startpos == -1)
 			{
 				talk[i] = false;
 				break;
 			}
-			else if(list.substr(startpos + 20, 1) == "0")
+			else if(wlist.substr(startpos + 20, 1) == L"0")
 			{
 				talk[i] = false;
 			}
-			else if(list.substr(startpos + 20, 1) == "1")
+			else if(wlist.substr(startpos + 20, 1) == L"1")
 			{
 				talk[i] = true;
 			}
-			list = list.substr(startpos+25);
+			wlist = wlist.substr(startpos+25);
 		}
 		
 		//print client list
 		fOverlay.open(path);
 		for(int i = 0; i < 10; i++)
 		{
-			if(name[i] == "")
+			if(name[i] == L"")
 			{
 				break;
 			}
-			ReplaceAll(name[i], "\\s", " ");
+			wReplaceAll(name[i], L"\\s", L" ");
 			wstring wsTmp(name[i].begin(), name[i].end());
 			/*print to screen here*/
 			if(talk[i])
