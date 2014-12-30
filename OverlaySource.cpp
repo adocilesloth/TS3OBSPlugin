@@ -15,9 +15,11 @@ Adapted from TextOutputSource.cpp origionally created by <obs.jim@gmail.com>
 HINSTANCE OvrHinst;
 
 //colours for the dialog box so they are initialised 
-DWORD fcolour = 161235 | 0xFFFFFFFF;
+DWORD fcolour  = 161235 | 0xFFFFFFFF;
 DWORD bgcolour = 161235 | 0xFFFFFFFF;
 DWORD olcolour = 161235 | 0xFFFFFFFF;
+int iname = 10;
+bool bname = false;
 
 #define ClampVal(val, minVal, maxVal) \
     if(val < minVal) val = minVal; \
@@ -65,6 +67,10 @@ class OverlaySource : public ImageSource
     Vect2       baseSize;
     SIZE        textureSize;
     bool        bUsePointFiltering;
+
+	//name max
+	int			nameNumber;
+	bool		bHideName;
 
     bool        bMonitoringFileChanges;
     OSFileChangeData *fileChangeMonitor;
@@ -442,6 +448,9 @@ public:
         UpdateSettings();
 		SetFile();
 
+		data->SetInt(TEXT("nameNumber"), iname);
+		data->SetInt(TEXT("bHideName"), bname);
+
         SamplerInfo si;
         zero(&si, sizeof(si));
         si.addressU = GS_ADDRESS_REPEAT;
@@ -577,6 +586,11 @@ public:
 
         backgroundColor   = data->GetInt(TEXT("backgroundColor"), 0xFF000000);
         backgroundOpacity = data->GetInt(TEXT("backgroundOpacity"), 0);
+
+		nameNumber = data->GetInt(TEXT("nameNumber"), 0);
+		iname = data->GetInt(TEXT("nameNumber"), 0);
+		bHideName = data->GetInt(TEXT("bHideName"), bname) != 0;
+		bname = data->GetInt(TEXT("bHideName"), bname) != 0;
 
         bUpdateTexture = true;
     }
@@ -768,6 +782,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 				olcolour = data->GetInt(TEXT("outlineColor"), 0xFF000000);
 
                 //-----------------------------------------
+				SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_SETRANGE32, 1, 128);
+				SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_SETPOS32, 0, data->GetInt(TEXT("nameNumber")));
+				SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_SETCHECK, data->GetInt(TEXT("bHideName"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
+				//-----------------------------------------
 
                 HDC hDCtest = GetDC(hwnd);
 
@@ -957,6 +975,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 case IDC_TEXTOPACITY_EDIT:
                 case IDC_OUTLINEOPACITY_EDIT:
                 case IDC_OUTLINETHICKNESS_EDIT:
+				case IDC_NAME_EDIT:
                     if(HIWORD(wParam) == EN_CHANGE && bInitializedDialog)
                     {
                         int val = (int)SendMessage(GetWindow((HWND)lParam, GW_HWNDNEXT), UDM_GETPOS32, 0, 0);
@@ -976,6 +995,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                                 case IDC_OUTLINEOPACITY_EDIT:       source->SetInt(TEXT("outlineOpacity"), val); break;
                                 case IDC_BACKGROUNDOPACITY_EDIT:    source->SetInt(TEXT("backgroundOpacity"), val); break;
                                 case IDC_OUTLINETHICKNESS_EDIT:     source->SetFloat(TEXT("outlineSize"), (float)val); break;
+								case IDC_NAME_EDIT:	
+									source->SetInt(TEXT("nameNumber"), val);
+									iname = val;
+									break;
                             }
                         }
                     }
@@ -987,6 +1010,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 case IDC_WRAP:
                 case IDC_USEOUTLINE:
                 case IDC_USETEXTEXTENTS:
+				case IDC_HIDEOWNNAME:
                     if(HIWORD(wParam) == BN_CLICKED && bInitializedDialog)
                     {
                         BOOL bChecked = SendMessage((HWND)lParam, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -1004,6 +1028,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                                 case IDC_WRAP:              source->SetInt(TEXT("wrap"), bChecked); break;
                                 case IDC_USEOUTLINE:        source->SetInt(TEXT("useOutline"), bChecked); break;
                                 case IDC_USETEXTEXTENTS:    source->SetInt(TEXT("useTextExtents"), bChecked); break;
+								case IDC_HIDEOWNNAME:
+									source->SetInt(TEXT("bHideName"), bChecked);
+									bname = bChecked;
+									break;
                             }
                         }
 
@@ -1067,6 +1095,11 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 
                         BOOL bBold = SendMessage(GetDlgItem(hwnd, IDC_BOLD), BM_GETCHECK, 0, 0) == BST_CHECKED;
                         BOOL bItalic = SendMessage(GetDlgItem(hwnd, IDC_ITALIC), BM_GETCHECK, 0, 0) == BST_CHECKED;
+
+						iname = SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_GETPOS32, 0, 0);
+						data->SetInt(TEXT("nameNumber"), iname);
+						bname = SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_GETCHECK, 0, 0) == BST_CHECKED;
+						data->SetInt(TEXT("bHideName"), bname);
 
                         BOOL pointFiltering = SendMessage(GetDlgItem(hwnd, IDC_POINTFILTERING), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
@@ -1182,6 +1215,9 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         data->SetInt(TEXT("extentWidth"), extentWidth);
                         data->SetInt(TEXT("extentHeight"), extentHeight);
                         data->SetInt(TEXT("align"), (int)SendMessage(GetDlgItem(hwnd, IDC_ALIGN), CB_GETCURSEL, 0, 0));
+
+						data->SetInt(TEXT("nameNumber"), iname);
+						data->SetInt(TEXT("bHideName"), bname);
                     }
 
                 case IDCANCEL:
@@ -1223,4 +1259,14 @@ bool STDCALL ConfigureOverlaySource(XElement *element, bool bCreating)
         return true;
     }
     return false;
+}
+
+int GetNumberOfNames()
+{
+	return iname;
+}
+
+bool GetHideSelf()
+{
+	return bname;
 }

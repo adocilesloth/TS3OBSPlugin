@@ -8,6 +8,7 @@
 #include <sstream>
 #include <fstream>
 #include <codecvt>
+#include <vector>
 
 using namespace std;
 
@@ -33,11 +34,14 @@ void RunOverlay(char* adrs)
 	std::locale loc(std::locale::classic(), new codecvt_utf8<wchar_t>);
 	//file.imbue(loc);
 
+	int iname;
+	bool bname;
+
 	int iResult;
 	char reci1[256];
 	char reci2[64];
-	char reci3[4096];
-	memset(reci3, 0, 4096);
+	vector<char> reci3;
+	int reci3Size;
 
 	char* whoami = "whoami\n";
 
@@ -56,13 +60,14 @@ void RunOverlay(char* adrs)
 	string cid;
 	string list;
 	wstring wlist;
-	wstring name[10];
-	bool talk[10] = {0};
+	vector<wstring> name;
+	vector<bool> talk;
 	bool skipname = false;
 	bool discon = true;
 	bool noserv = true;
 	bool rename = true;
 	bool bCom = false;
+	wstring userName;
 	bool bMnD = false;
 	bool bSwt = false;
 
@@ -71,6 +76,8 @@ void RunOverlay(char* adrs)
 	path.append(L"\\Overlay.txt");
 	wofstream fOverlay;
 	fOverlay.imbue(loc);
+	fOverlay.open(path);	//open and close to clear file
+	fOverlay.close();
 
 	AppWarning(TEXT("Overlay: Started"));
 
@@ -104,6 +111,38 @@ void RunOverlay(char* adrs)
 			AppWarning(TEXT("Overlay: First Recieve Failure"));
 			CloseConnection(overlay);
 			goto skip;
+		}
+
+		if(rename)
+		{
+			if(!bCom)
+			{
+				userName = Communicate(1, overlay);
+				if(userName != L"poop")
+				{
+					wReplaceAll(userName, L"\\s", L" ");
+					bCom = true;
+				}
+				else
+				{
+					bCom = false;
+				}
+			}
+			if(!bMnD)
+			{
+				bMnD = MuteandDeafen(1, overlay);
+			}
+			if(!bSwt)
+			{
+				bSwt = ChannelSwitch(1, overlay);
+			}
+			if(bCom && bMnD && bSwt)
+			{
+				bCom = false;
+				bMnD = false;
+				bSwt = false;
+				rename = false;
+			}
 		}
 
 		//get cid
@@ -164,6 +203,11 @@ void RunOverlay(char* adrs)
 		tempstr.append(" -voice\n");
 		const char *cllist = tempstr.c_str();
 
+		//recieve setup
+		iname = GetNumberOfNames();
+		reci3Size = iname * 360;
+		reci3.resize(reci3Size);
+
 		//get channelclientlist
 		iResult = send(overlay, cllist, (int)strlen(cllist), 0);	//send channelcli...
 		if (iResult == SOCKET_ERROR)
@@ -173,7 +217,7 @@ void RunOverlay(char* adrs)
 			goto skip;
 		}
 		Sleep(5);					//100//allows full list to be generated and limits loop rate
-		iResult = recv(overlay, reci3, 4096 ,0);					//recieve channelcli...
+		iResult = recv(overlay, &reci3[0], reci3.size(), 0);					//recieve channelcli...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: channelclientlist Recieve Failure"));
@@ -183,10 +227,11 @@ void RunOverlay(char* adrs)
 
 		widentstart = L"name=";
 		widentend = L"client_type";
-		list = reci3;
+		list.assign(reci3.begin(), reci3.end());
 		wlist = s2ws(list);
+
 		//generate client list
-		for(int i = 0; i < 10; i++)
+		for(int i = 0; i < iname; i++)
 		{
 			startpos = wlist.find(widentstart);
 			if(startpos == -1)
@@ -201,48 +246,57 @@ void RunOverlay(char* adrs)
 			if(!skipname)
 			{
 				wtempstr = wlist.substr(startpos + 5, endpos-startpos-6);
-				name[i] = wtempstr;
+				name.push_back(wtempstr);
 			}
 			else
 			{
-				name[i] = L"";
+				name.push_back(L"");
 				skipname = false;
 			}
 			startpos = wlist.find(talkstart);
 			if(startpos == -1)
 			{
-				talk[i] = false;
+				talk.push_back(false);
 				break;
 			}
 			else if(wlist.substr(startpos + 20, 1) == L"0")
 			{
-				talk[i] = false;
+				talk.push_back(false);
 			}
 			else if(wlist.substr(startpos + 20, 1) == L"1")
 			{
-				talk[i] = true;
+				talk.push_back(true);
 			}
 			wlist = wlist.substr(startpos+25);
 		}
 		
 		//print client list
+		bname = GetHideSelf();
 		fOverlay.open(path);
-		for(int i = 0; i < 10; i++)
+		//fOverlay << bname << endl;		//uncomment to remove the BOOL warning which forces this true or false
+		for(int i = 0; i < iname; i++)
 		{
 			if(name[i] == L"")
 			{
 				break;
 			}
 			wReplaceAll(name[i], L"\\s", L" ");
-			wstring wsTmp(name[i].begin(), name[i].end());
-			/*print to screen here*/
-			if(talk[i])
+			if(bname && name[i] == userName)
 			{
-				fOverlay << L"\u25CF" << wsTmp << endl;
+				//do nothing
 			}
 			else
 			{
-				fOverlay << L"\u25CB" << wsTmp << endl;
+				wstring wsTmp(name[i].begin(), name[i].end());
+	
+				if(talk[i])
+				{
+					fOverlay << L"\u25CF" << wsTmp << endl;
+				}
+				else
+				{
+					fOverlay << L"\u25CB" << wsTmp << endl;
+				}
 			}
 		}
 		fOverlay.close();
@@ -250,48 +304,32 @@ void RunOverlay(char* adrs)
 		//reset variables
 		memset(reci1, 0, 256);
 		memset(reci2, 0, 64);
-		memset(reci3, 0, 4096);
+		reci3.clear();
 		cid.clear();
 		list.clear();
-		for(int i = 0; i < 10; i++)
-		{
-			name[i].clear();
-			talk[i] = false;
-		}
+		name.clear();
+		talk.clear();
 		identstart.clear();
 		identend.clear();
 		startpos = 0;
 		endpos = 0;
 		tempstr.clear();
 
-		if(rename)
-		{
-			if(!bCom)
-			{
-				bCom = Communicate(1, overlay);
-			}
-			if(!bMnD)
-			{
-				bMnD = MuteandDeafen(1, overlay);
-			}
-			if(!bSwt)
-			{
-				bSwt = ChannelSwitch(1, overlay);
-			}
-			if(bCom && bMnD && bSwt)
-			{
-				bCom = false;
-				bMnD = false;
-				bSwt = false;
-				rename = false;
-			}
-		}
-
 		CloseConnection(overlay);
 
 skip:
 		Sleep(100);
 	}
+
+	//unname
+	if(!ConnectToHost(25639, adrs, overlay))
+	{
+		AppWarning(TEXT("StopStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
+	}
+	Communicate(0, overlay);
+	MuteandDeafen(0, overlay);
+	ChannelSwitch(0, overlay);
+	CloseConnection(overlay);
 
 	return;
 }

@@ -420,22 +420,10 @@ void OnStartStream()
 void OnStopStream()
 {
 	char *adrs = getIP();
-	bool stop;
-	SOCKET obs;
 
 	ShutdownOverlay();
 	WaitForSingleObject(OvrThread, INFINITE);
 	ResetOverlay();
-
-	if(!ConnectToHost(25639, adrs, obs))
-	{
-		AppWarning(TEXT("StopStream: Connection Failure: Check TS3 is running and ClientQuery Plugin is enabled"));
-		return;
-	}
-	stop = Communicate(0, obs);
-	stop = MuteandDeafen(0, obs);
-	stop = ChannelSwitch(0, obs);
-	CloseConnection(obs);
 
 	return;
 }
@@ -458,9 +446,11 @@ char* getIP()
 	return IPadrs;
 }
 
-bool Communicate(int cont, SOCKET &obs)
+wstring Communicate(int cont, SOCKET &obs)
 {
 	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
+
+	wstring poop = L"poop";	//failure return
 
 	int iResult;
 	char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
@@ -474,7 +464,7 @@ bool Communicate(int cont, SOCKET &obs)
 	wstring wspace = L"\\s";
 
 	//debug file
-	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.ini");
+	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
 
 	//get settings file path
 	wstring path = OBSGetPluginDataPath().Array();
@@ -496,6 +486,9 @@ bool Communicate(int cont, SOCKET &obs)
 	string tempgetname(wtempgetname.begin(), wtempgetname.end());
 	const char *getname = tempgetname.c_str();
 
+	//debug string
+	wstringstream DEBUG;
+
 	if(cont != 1)
 	{
 		iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
@@ -503,7 +496,7 @@ bool Communicate(int cont, SOCKET &obs)
 		{
 			AppWarning(TEXT("Communicate: First Recieve Failure"));
 			settings.close();
-			return false;
+			return poop;
 		}
 	}
 
@@ -513,7 +506,7 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Send Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
 	Sleep(5);
 	iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
@@ -521,8 +514,15 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
+
+	for(int i = 0; i < 10; i++)
+	{
+		DEBUG << reci2[i];
+	}
+	AppWarning(DEBUG.str().c_str());	//should not be Welcome to
+	DEBUG.str(L"");						//should be error id=0
 
 	//clientnamefromuid
 	iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
@@ -530,7 +530,7 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
 	Sleep(5);
 	iResult = recv(obs, reci3, 256, 0);	//recieve name
@@ -538,21 +538,35 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
+
+	for(int i = 0; i < 10; i++)
+	{
+		DEBUG << reci3[i];
+	}
+	AppWarning(DEBUG.str().c_str());	//should not be error id=0
+	DEBUG.str(L"");						//should be notifyclie
 
 	//get name
 	wstring identstart = L"name=";
+	wstring identend = L"\n";
 	string name = reci3;
 	wstring wname = s2ws(name);
 
 	size_t startpos = wname.find(identstart);	//start of name
 	if(startpos == -1)
 	{
-		return false;
+		return poop;
 	}
+	size_t endpos = wname.find(identend);
+	if(endpos < startpos)
+	{
+		return poop;
+	}
+	wname = wname.substr(startpos+5, endpos-startpos-5);
 	int count = wcountSubstring(wname, wspace);	//number of \s
-	wname = wname.substr(startpos+5 , 30 + count);
+	//wname = wname.substr(startpos+5 , 30 + count);
 	//get name end
 
 	if(!bprefix)	//if using suffix
@@ -595,8 +609,7 @@ bool Communicate(int cont, SOCKET &obs)
 			if(wname.substr(0, rec.length()) != rec)
 			{
 				wname = wname.substr(0, 30 + count - rec.length());
-				wnewname << rec
-						 << wname << L"\n";	//finish name set string
+				wnewname << rec;	//finish name set string
 			}
 		}
 		else if(cont == 0)		//removing modifier
@@ -609,6 +622,11 @@ bool Communicate(int cont, SOCKET &obs)
 		wnewname << wname << L"\n";			//finish name set string
 	}
 
+	//name for return
+	wstring rname = rec;
+	rname.append(wname);
+
+	AppWarning(wnewname.str().c_str());		//print name being sent
 
 	const string tmp = ws2s(wnewname.str());	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
@@ -619,7 +637,7 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Send Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
 	Sleep(5);
 	iResult = recv(obs, reci4, 256 ,0);
@@ -627,12 +645,19 @@ bool Communicate(int cont, SOCKET &obs)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
 		settings.close();
-		return false;
+		return poop;
 	}
+
+	for(int i = 0; i < 50; i++)
+	{
+		DEBUG << reci4[i];
+	}
+	AppWarning(DEBUG.str().c_str());	//should be error id=0
+	DEBUG.str(L"");
 
 	//file.close();
 	settings.close();
-	return true;
+	return rname;
 }
 
 bool MuteandDeafen(int state, SOCKET &obs)
