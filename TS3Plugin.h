@@ -24,6 +24,7 @@ bool ConnectToHost(int, char*, SOCKET&);
 void CloseConnection(SOCKET&);
 
 char* getIP();
+std::wstring getIPwstring();
 std::wstring Communicate(int, SOCKET&);
 bool MuteandDeafen(int, SOCKET&);
 bool ChannelSwitch(int, SOCKET&);
@@ -44,3 +45,4 @@ std::string ws2s(const std::wstring&);
 
 int GetNumberOfNames();
 bool GetHideSelf();
+bool GetRightOfSymbol();

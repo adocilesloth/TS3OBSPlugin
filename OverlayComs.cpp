@@ -19,12 +19,14 @@ ending close;
 
 void ShutdownOverlay()
 {
+	AppWarning(TEXT("Overlay: ShutdownOverlay"));
 	close.now();
 	return;
 }
 
 void ResetOverlay()
 {
+	AppWarning(TEXT("Overlay: ResetOverlay"));
 	close.nolonger();
 	return;
 }
@@ -36,6 +38,7 @@ void RunOverlay(char* adrs)
 
 	int iname;
 	bool bname;
+	bool bright;
 
 	int iResult;
 	char reci1[256];
@@ -70,6 +73,7 @@ void RunOverlay(char* adrs)
 	wstring userName;
 	bool bMnD = false;
 	bool bSwt = false;
+	wstring wip = getIPwstring();
 
 	//File stuff
 	wstring path = OBSGetPluginDataPath().Array();
@@ -104,17 +108,38 @@ void RunOverlay(char* adrs)
 
 		discon = true;
 
+		if(wip != L"127.0.0.1")
+		{
+			AppWarning(TEXT("Remote grab"));
+			Sleep(5);
+			iResult = recv(overlay, reci1, 256 ,0);	//get TS3 Client...
+			if (iResult == SOCKET_ERROR)
+			{
+				AppWarning(TEXT("Overlay: Remote First Recieve Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				CloseConnection(overlay);
+				goto skip;
+			}
+		}
 		Sleep(5);				//to allow full mesage to be created
 		iResult = recv(overlay, reci1, 256 ,0);	//get TS3 Client...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: First Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			CloseConnection(overlay);
 			goto skip;
 		}
 
 		if(rename)
 		{
+			AppWarning(TEXT("Overlay: Rename"));
 			if(!bCom)
 			{
 				userName = Communicate(1, overlay);
@@ -150,14 +175,22 @@ void RunOverlay(char* adrs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: whoami Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			CloseConnection(overlay);
 			goto skip;
 		}
-		Sleep(1);								//let message be fully sent
+		Sleep(5);								//let message be fully sent
 		iResult = recv(overlay, reci2, 64 ,0);	//get whoami
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: whoami Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			CloseConnection(overlay);
 			goto skip;
 		}
@@ -186,17 +219,20 @@ void RunOverlay(char* adrs)
 		identend = "\n";
 		cid = reci2;
 		startpos = cid.find(identstart);
+
 		if(startpos == -1)
 		{
+			AppWarning(TEXT("startpos == -1"));
 			goto skip;
 		}
 		endpos = cid.find(identend);
 		if(endpos < 0)
 		{
+			AppWarning(TEXT("endpos < 0"));
 			goto skip;
 		}
 		cid = cid.substr(startpos, endpos - startpos);
-		
+
 		//set up channelclientlist
 		tempstr = "channelclientlist ";
 		tempstr.append(cid);
@@ -213,14 +249,22 @@ void RunOverlay(char* adrs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: channelclientlist Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			CloseConnection(overlay);
 			goto skip;
 		}
-		Sleep(5);					//100//allows full list to be generated and limits loop rate
+		Sleep(100);					//100//allows full list to be generated and limits loop rate
 		iResult = recv(overlay, &reci3[0], reci3.size(), 0);					//recieve channelcli...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Overlay: channelclientlist Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			CloseConnection(overlay);
 			goto skip;
 		}
@@ -272,8 +316,10 @@ void RunOverlay(char* adrs)
 		
 		//print client list
 		bname = GetHideSelf();
+		bright = GetRightOfSymbol();
 		fOverlay.open(path);
 		//fOverlay << bname << endl;		//uncomment to remove the BOOL warning which forces this true or false
+		//fOverlay << bright << endl;		//uncomment to remove the BOOL warning which forces this true or false
 		for(int i = 0; i < iname; i++)
 		{
 			if(name[i] == L"")
@@ -288,14 +334,28 @@ void RunOverlay(char* adrs)
 			else
 			{
 				wstring wsTmp(name[i].begin(), name[i].end());
-	
-				if(talk[i])
+				
+				if(!bright)
 				{
-					fOverlay << L"\u25CF" << wsTmp << endl;
+					if(talk[i])
+					{
+						fOverlay << L"\u25CF" << wsTmp << endl;
+					}
+					else
+					{
+						fOverlay << L"\u25CB" << wsTmp << endl;
+					}
 				}
 				else
 				{
-					fOverlay << L"\u25CB" << wsTmp << endl;
+					if(talk[i])
+					{
+						fOverlay << wsTmp << L"\u25CF" << endl;
+					}
+					else
+					{
+						fOverlay << wsTmp << L"\u25CB" << endl;
+					}
 				}
 			}
 		}
@@ -318,6 +378,7 @@ void RunOverlay(char* adrs)
 		CloseConnection(overlay);
 
 skip:
+		WSACleanup();
 		Sleep(100);
 	}
 

@@ -446,8 +446,24 @@ char* getIP()
 	return IPadrs;
 }
 
+wstring getIPwstring()
+{
+	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
+
+	wstring path = OBSGetPluginDataPath().Array();
+	wstring wIPadrsstr;
+
+	settings.open(path + L"\\ts3.ini");
+	getline(settings, wIPadrsstr);
+
+	settings.close();
+	return wIPadrsstr;
+}
+
 wstring Communicate(int cont, SOCKET &obs)
 {
+	AppWarning(TEXT("Communicate"));
+
 	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 
 	wstring poop = L"poop";	//failure return
@@ -495,8 +511,29 @@ wstring Communicate(int cont, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("Communicate: First Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			settings.close();
 			return poop;
+		}
+
+		AppWarning(getIPwstring().c_str());		//use this to stop the next if going bad.
+		if(getIPwstring() != L"127.0.0.1")
+		{
+			AppWarning(TEXT("Communicate: Non-Local Shutdown"));
+			iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
+			if (iResult == SOCKET_ERROR)
+			{
+				AppWarning(TEXT("Communicate: Remote First Recieve Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				settings.close();
+				return poop;
+			}
 		}
 	}
 
@@ -505,14 +542,22 @@ wstring Communicate(int cont, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
-	Sleep(5);
+	Sleep(50);
 	iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
@@ -529,14 +574,22 @@ wstring Communicate(int cont, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
-	Sleep(5);
+	Sleep(50);
 	iResult = recv(obs, reci3, 256, 0);	//recieve name
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
@@ -557,11 +610,13 @@ wstring Communicate(int cont, SOCKET &obs)
 	size_t startpos = wname.find(identstart);	//start of name
 	if(startpos == -1)
 	{
+		AppWarning(TEXT("Communicate: startpos == -1"));
 		return poop;
 	}
 	size_t endpos = wname.find(identend);
 	if(endpos < startpos)
 	{
+		AppWarning(TEXT("Communicate: endpos < startpos"));
 		return poop;
 	}
 	wname = wname.substr(startpos+5, endpos-startpos-5);
@@ -636,14 +691,22 @@ wstring Communicate(int cont, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
-	Sleep(5);
+	Sleep(50);
 	iResult = recv(obs, reci4, 256 ,0);
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		settings.close();
 		return poop;
 	}
@@ -662,6 +725,8 @@ wstring Communicate(int cont, SOCKET &obs)
 
 bool MuteandDeafen(int state, SOCKET &obs)
 {
+	AppWarning(TEXT("MuteandDeafen"));
+
 	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 
 	//get settings file path
@@ -699,14 +764,22 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("MuteandDeafen: Mute Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			settings.close();
 			return false;
 		}
-		Sleep(5);
+		Sleep(50);
 		iResult = recv(obs, reci1, 256, 0);	//recieve result: error id=0...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("MuteandDeafen: Mute Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			settings.close();
 			return false;
 		}
@@ -724,14 +797,22 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("MuteandDeafen: Deaf Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			settings.close();
 			return false;
 		}
-		Sleep(5);
+		Sleep(50);
 		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("MuteandDeafen: Deaf Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			settings.close();
 			return false;
 		}
@@ -743,6 +824,8 @@ bool MuteandDeafen(int state, SOCKET &obs)
 
 bool ChannelSwitch(int state, SOCKET &obs)
 {
+	AppWarning(TEXT("ChannelSwitch"));
+
 	ifstream ssettings;
 	ssettings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
 	//get settings file path
@@ -775,14 +858,22 @@ bool ChannelSwitch(int state, SOCKET &obs)
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		ssettings.close();
 		return false;
 	}
-	Sleep(5);
+	Sleep(50);
 	iResult = recv(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
 	if (iResult == SOCKET_ERROR)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
 		ssettings.close();
 		return false;
 	}
@@ -792,6 +883,7 @@ bool ChannelSwitch(int state, SOCKET &obs)
 	if(space == -1)
 	{
 		ssettings.close();
+		AppWarning(TEXT("ChannelSwitch: space == -1"));
 		return false;
 	}
 	clid = clid.substr(0, space);
@@ -808,12 +900,14 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		size_t startpos = rcid.find("cid=");
 		if(startpos == -1)
 		{
+			AppWarning(TEXT("ChannelSwitch: startpos == -1"));
 			ssettings.close();
 			return false;
 		}
 		size_t endpos = rcid.find("\n");
 		if(endpos - startpos < 0)
 		{
+			AppWarning(TEXT("ChannelSwitch: endpos - startpos < 0"));
 			ssettings.close();
 			return false;
 		}
@@ -835,14 +929,22 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			ssettings.close();
 			return false;
 		}
-		Sleep(5);
+		Sleep(50);
 		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			ssettings.close();
 			return false;
 		}
@@ -857,12 +959,14 @@ bool ChannelSwitch(int state, SOCKET &obs)
 			size_t startpos = rcid.find("cid=");
 			if(startpos == -1)
 			{
+				AppWarning(TEXT("ChannelSwitch: startpos == -1"));
 				ssettings.close();
 				return false;
 			}
 			size_t endpos = rcid.find("\n");
 			if(endpos - startpos < 0)
 			{
+				AppWarning(TEXT("ChannelSwitch: endpos - startpos < 0"));
 				ssettings.close();
 				return false;
 			}
@@ -882,14 +986,22 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			ssettings.close();
 			return false;
 		}
-		Sleep(5);
+		Sleep(50);
 		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
 		if (iResult == SOCKET_ERROR)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
 			ssettings.close();
 			return false;
 		}

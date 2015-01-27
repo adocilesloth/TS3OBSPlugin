@@ -20,6 +20,7 @@ DWORD bgcolour = 161235 | 0xFFFFFFFF;
 DWORD olcolour = 161235 | 0xFFFFFFFF;
 int iname = 10;
 bool bname = false;
+bool bright = false;
 
 #define ClampVal(val, minVal, maxVal) \
     if(val < minVal) val = minVal; \
@@ -71,6 +72,7 @@ class OverlaySource : public ImageSource
 	//name max
 	int			nameNumber;
 	bool		bHideName;
+	bool		bRightSymbol;
 
     bool        bMonitoringFileChanges;
     OSFileChangeData *fileChangeMonitor;
@@ -591,6 +593,7 @@ public:
 		iname = data->GetInt(TEXT("nameNumber"), 0);
 		bHideName = data->GetInt(TEXT("bHideName"), bname) != 0;
 		bname = data->GetInt(TEXT("bHideName"), bname) != 0;
+		bright = data->GetInt(TEXT("bRightSymbol"), bright) != 0;
 
         bUpdateTexture = true;
     }
@@ -785,6 +788,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 				SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_SETRANGE32, 1, 128);
 				SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_SETPOS32, 0, data->GetInt(TEXT("nameNumber")));
 				SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_SETCHECK, data->GetInt(TEXT("bHideName"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
+				SendMessage(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), BM_SETCHECK, data->GetInt(TEXT("bRightSymbol"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
 				//-----------------------------------------
 
                 HDC hDCtest = GetDC(hwnd);
@@ -1011,6 +1015,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 case IDC_USEOUTLINE:
                 case IDC_USETEXTEXTENTS:
 				case IDC_HIDEOWNNAME:
+				case IDC_RIGHTSYMBOL:
                     if(HIWORD(wParam) == BN_CLICKED && bInitializedDialog)
                     {
                         BOOL bChecked = SendMessage((HWND)lParam, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -1031,6 +1036,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 								case IDC_HIDEOWNNAME:
 									source->SetInt(TEXT("bHideName"), bChecked);
 									bname = bChecked;
+									break;
+								case IDC_RIGHTSYMBOL:
+									source->SetInt(TEXT("bRightSymbol"), bChecked);
+									bright = bChecked;
 									break;
                             }
                         }
@@ -1100,6 +1109,8 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 						data->SetInt(TEXT("nameNumber"), iname);
 						bname = SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_GETCHECK, 0, 0) == BST_CHECKED;
 						data->SetInt(TEXT("bHideName"), bname);
+						bright = SendMessage(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), BM_GETCHECK, 0, 0) == BST_CHECKED;
+						data->SetInt(TEXT("bRightSymbol"), bright);
 
                         BOOL pointFiltering = SendMessage(GetDlgItem(hwnd, IDC_POINTFILTERING), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
@@ -1218,6 +1229,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 
 						data->SetInt(TEXT("nameNumber"), iname);
 						data->SetInt(TEXT("bHideName"), bname);
+						data->SetInt(TEXT("bRightSymbol"), bright);
                     }
 
                 case IDCANCEL:
@@ -1269,4 +1281,9 @@ int GetNumberOfNames()
 bool GetHideSelf()
 {
 	return bname;
+}
+
+bool GetRightOfSymbol()
+{
+	return bright;
 }
