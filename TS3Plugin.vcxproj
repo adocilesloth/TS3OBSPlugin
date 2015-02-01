@@ -162,6 +162,7 @@
     <ClInclude Include="ending.h" />
     <ClInclude Include="OverlaySource.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="socketSRall.h" />
     <ClInclude Include="TS3Plugin.h" />
   </ItemGroup>
   <ItemGroup>

@@ -21,6 +21,8 @@ DWORD olcolour = 161235 | 0xFFFFFFFF;
 int iname = 10;
 bool bname = false;
 bool bright = false;
+bool btalker = false;
+int italker = 500;
 
 #define ClampVal(val, minVal, maxVal) \
     if(val < minVal) val = minVal; \
@@ -73,6 +75,8 @@ class OverlaySource : public ImageSource
 	int			nameNumber;
 	bool		bHideName;
 	bool		bRightSymbol;
+	bool		bOnlyTalker;
+	int			hideTime;
 
     bool        bMonitoringFileChanges;
     OSFileChangeData *fileChangeMonitor;
@@ -450,9 +454,6 @@ public:
         UpdateSettings();
 		SetFile();
 
-		data->SetInt(TEXT("nameNumber"), iname);
-		data->SetInt(TEXT("bHideName"), bname);
-
         SamplerInfo si;
         zero(&si, sizeof(si));
         si.addressU = GS_ADDRESS_REPEAT;
@@ -594,6 +595,8 @@ public:
 		bHideName = data->GetInt(TEXT("bHideName"), bname) != 0;
 		bname = data->GetInt(TEXT("bHideName"), bname) != 0;
 		bright = data->GetInt(TEXT("bRightSymbol"), bright) != 0;
+		btalker = data->GetInt(TEXT("bOnlyTalker"), btalker) != 0;
+		italker = data->GetInt(TEXT("hideTime"), 0);
 
         bUpdateTexture = true;
     }
@@ -789,6 +792,13 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 				SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_SETPOS32, 0, data->GetInt(TEXT("nameNumber")));
 				SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_SETCHECK, data->GetInt(TEXT("bHideName"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
 				SendMessage(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), BM_SETCHECK, data->GetInt(TEXT("bRightSymbol"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
+				SendMessage(GetDlgItem(hwnd, IDC_ONLYSPEAKER), BM_SETCHECK, data->GetInt(TEXT("bOnlyTalker"), 0) ? BST_CHECKED : BST_UNCHECKED, 0);
+				SendMessage(GetDlgItem(hwnd, IDC_HIDE), UDM_SETRANGE32, 0, 2000);
+				SendMessage(GetDlgItem(hwnd, IDC_HIDE), UDM_SETPOS32, 0, data->GetInt(TEXT("hideTime")));
+
+				EnableWindow(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), !data->GetInt(TEXT("bOnlyTalker")));
+				EnableWindow(GetDlgItem(hwnd, IDC_HIDE), data->GetInt(TEXT("bOnlyTalker")));
+				EnableWindow(GetDlgItem(hwnd, IDC_HIDE_EDIT), data->GetInt(TEXT("bOnlyTalker")));
 				//-----------------------------------------
 
                 HDC hDCtest = GetDC(hwnd);
@@ -803,7 +813,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                     int id = (int)SendMessage(hwndFonts, CB_ADDSTRING, 0, (LPARAM)configInfo->fontNames[i].Array());
                     SendMessage(hwndFonts, CB_SETITEMDATA, id, (LPARAM)i);
                 }
-
+				
                 CTSTR lpFont = data->GetString(TEXT("font"));
                 UINT id = OvrFindFontFace(configInfo, hwndFonts, lpFont);
                 if(id == INVALID)
@@ -980,6 +990,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 case IDC_OUTLINEOPACITY_EDIT:
                 case IDC_OUTLINETHICKNESS_EDIT:
 				case IDC_NAME_EDIT:
+				case IDC_HIDE_EDIT:
                     if(HIWORD(wParam) == EN_CHANGE && bInitializedDialog)
                     {
                         int val = (int)SendMessage(GetWindow((HWND)lParam, GW_HWNDNEXT), UDM_GETPOS32, 0, 0);
@@ -1003,6 +1014,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 									source->SetInt(TEXT("nameNumber"), val);
 									iname = val;
 									break;
+								case IDC_HIDE_EDIT:
+									source->SetInt(TEXT("hideTime"), val);
+									italker = val;
+									break;
                             }
                         }
                     }
@@ -1016,6 +1031,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                 case IDC_USETEXTEXTENTS:
 				case IDC_HIDEOWNNAME:
 				case IDC_RIGHTSYMBOL:
+				case IDC_ONLYSPEAKER:
                     if(HIWORD(wParam) == BN_CLICKED && bInitializedDialog)
                     {
                         BOOL bChecked = SendMessage((HWND)lParam, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -1041,6 +1057,11 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 									source->SetInt(TEXT("bRightSymbol"), bChecked);
 									bright = bChecked;
 									break;
+								case IDC_ONLYSPEAKER:
+									source->SetInt(TEXT("bOnlyTalker"), bChecked);
+									btalker = bChecked;
+									break;
+
                             }
                         }
 
@@ -1068,8 +1089,15 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                             EnableWindow(GetDlgItem(hwnd, IDC_OUTLINEOPACITY_EDIT), bChecked);
                             EnableWindow(GetDlgItem(hwnd, IDC_OUTLINEOPACITY), bChecked);
                         }
+						else if(LOWORD(wParam) == IDC_ONLYSPEAKER)
+						{
+							EnableWindow(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), !bChecked);
+							EnableWindow(GetDlgItem(hwnd, IDC_HIDE_EDIT), bChecked);
+                            EnableWindow(GetDlgItem(hwnd, IDC_HIDE), bChecked);
+						}
                     }
                     break;
+
 
                 case IDC_ALIGN:
                     if(HIWORD(wParam) == CBN_SELCHANGE && bInitializedDialog)
@@ -1111,6 +1139,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 						data->SetInt(TEXT("bHideName"), bname);
 						bright = SendMessage(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), BM_GETCHECK, 0, 0) == BST_CHECKED;
 						data->SetInt(TEXT("bRightSymbol"), bright);
+						btalker = SendMessage(GetDlgItem(hwnd, IDC_ONLYSPEAKER), BM_GETCHECK, 0, 0) == BST_CHECKED;
+						data->SetInt(TEXT("bOnlyTalker"), btalker);
+						italker = SendMessage(GetDlgItem(hwnd, IDC_HIDE), UDM_GETPOS32, 0, 0);
+						data->SetInt(TEXT("hideTime"), italker);
 
                         BOOL pointFiltering = SendMessage(GetDlgItem(hwnd, IDC_POINTFILTERING), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
@@ -1230,6 +1262,8 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 						data->SetInt(TEXT("nameNumber"), iname);
 						data->SetInt(TEXT("bHideName"), bname);
 						data->SetInt(TEXT("bRightSymbol"), bright);
+						data->SetInt(TEXT("bOnlyTalker"), btalker);
+						data->SetInt(TEXT("hideTime"), italker);
                     }
 
                 case IDCANCEL:
@@ -1286,4 +1320,14 @@ bool GetHideSelf()
 bool GetRightOfSymbol()
 {
 	return bright;
+}
+
+bool GetOnlyShowTalker()
+{
+	return btalker;
+}
+
+int GetHideNameAfter()
+{
+	return italker;
 }

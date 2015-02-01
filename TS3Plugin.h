@@ -1,5 +1,5 @@
 /*****************************
-2014 <adocilesloth@gmail.com>
+2015 <adocilesloth@gmail.com>
 *****************************/
 #pragma once
 #include "OBSApi.h"
@@ -24,7 +24,6 @@ bool ConnectToHost(int, char*, SOCKET&);
 void CloseConnection(SOCKET&);
 
 char* getIP();
-std::wstring getIPwstring();
 std::wstring Communicate(int, SOCKET&);
 bool MuteandDeafen(int, SOCKET&);
 bool ChannelSwitch(int, SOCKET&);
@@ -46,3 +45,5 @@ std::string ws2s(const std::wstring&);
 int GetNumberOfNames();
 bool GetHideSelf();
 bool GetRightOfSymbol();
+bool GetOnlyShowTalker();
+int GetHideNameAfter();

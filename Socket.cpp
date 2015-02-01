@@ -1,5 +1,5 @@
 /*****************************
-2014 <adocilesloth@gmail.com>
+2015 <adocilesloth@gmail.com>
 *****************************/
 #include "TS3Plugin.h"
 #include <sstream>
@@ -36,10 +36,6 @@ bool ConnectToHost(int port, char* adrs, SOCKET& sock)
 
 	if (connect(sock, (SOCKADDR *)&target, sizeof(target)) == SOCKET_ERROR) //connect
     {
-		AppWarning(TEXT("SOCKET_ERROR"));
-		wstringstream code;
-		code << WSAGetLastError();
-		AppWarning(code.str().c_str());
         return false; //Couldn't connect
     }
     else

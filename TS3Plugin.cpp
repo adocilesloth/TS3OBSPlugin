@@ -1,9 +1,10 @@
 ﻿/*****************************
-2014 <adocilesloth@gmail.com>
+2015 <adocilesloth@gmail.com>
 *****************************/
 #include "TS3Plugin.h"
 #include "resource.h"
 #include "OverlaySource.h"
+#include "socketSRall.h"
 
 #include <fstream>
 #include <sstream>
@@ -266,7 +267,9 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 				break;
 			}
 
-			int iResult;
+			SendAll sa;
+			RecvAll ra;
+			bool iResult;
 			int i = 0;
 			char *whoami = "whoami\n";
 			char reci[256];
@@ -274,15 +277,15 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
 			do
 			{
-				iResult = send(obs, whoami, (int)strlen(whoami), 0);	//request whoami
-				if (iResult == SOCKET_ERROR)
+				iResult = sa.send_all(obs, whoami, (int)strlen(whoami), 0);	//request whoami
+				if (!iResult)
 				{
 					AppWarning(TEXT("whoami Send Failure"));
 					break;
 				}
 
-				iResult = recv(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
-				if (iResult == SOCKET_ERROR)
+				iResult = ra.recv_all(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
+				if (!iResult)
 				{
 					AppWarning(TEXT("whoami Recieve Failure"));
 					break;
@@ -412,7 +415,7 @@ void OnStartStream()
 {
 	char *adrs = getIP();
 
-	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, 0);
+	OvrThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RunOverlay, adrs, 0, NULL);
 
 	return;
 }
@@ -446,20 +449,6 @@ char* getIP()
 	return IPadrs;
 }
 
-wstring getIPwstring()
-{
-	settings.imbue(std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t,0x10ffff, std::consume_header>));
-
-	wstring path = OBSGetPluginDataPath().Array();
-	wstring wIPadrsstr;
-
-	settings.open(path + L"\\ts3.ini");
-	getline(settings, wIPadrsstr);
-
-	settings.close();
-	return wIPadrsstr;
-}
-
 wstring Communicate(int cont, SOCKET &obs)
 {
 	AppWarning(TEXT("Communicate"));
@@ -468,11 +457,12 @@ wstring Communicate(int cont, SOCKET &obs)
 
 	wstring poop = L"poop";	//failure return
 
-	int iResult;
+	SendAll sa;
+	RecvAll ra;
+	bool iResult;
 	char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
 	wstringstream wnewname;
 	wnewname << L"clientupdate client_nickname=";
-	char reci1[256];
 	char reci2[256];
 	char reci3[256];
 	char reci4[256];
@@ -502,44 +492,15 @@ wstring Communicate(int cont, SOCKET &obs)
 	string tempgetname(wtempgetname.begin(), wtempgetname.end());
 	const char *getname = tempgetname.c_str();
 
+	//return string
+	wstring rname;
+
 	//debug string
 	wstringstream DEBUG;
 
-	if(cont != 1)
-	{
-		iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
-		if (iResult == SOCKET_ERROR)
-		{
-			AppWarning(TEXT("Communicate: First Recieve Failure"));
-			AppWarning(TEXT("SOCKET_ERROR"));
-			wstringstream code;
-			code << WSAGetLastError();
-			AppWarning(code.str().c_str());
-			settings.close();
-			return poop;
-		}
-
-		AppWarning(getIPwstring().c_str());		//use this to stop the next if going bad.
-		if(getIPwstring() != L"127.0.0.1")
-		{
-			AppWarning(TEXT("Communicate: Non-Local Shutdown"));
-			iResult = recv(obs, reci1, 256 ,0);	//get TS3 Client...
-			if (iResult == SOCKET_ERROR)
-			{
-				AppWarning(TEXT("Communicate: Remote First Recieve Failure"));
-				AppWarning(TEXT("SOCKET_ERROR"));
-				wstringstream code;
-				code << WSAGetLastError();
-				AppWarning(code.str().c_str());
-				settings.close();
-				return poop;
-			}
-		}
-	}
-
 	//notifyregister
-	iResult = send(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
-	if (iResult == SOCKET_ERROR)
+	iResult = sa.send_all(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Send Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -549,9 +510,8 @@ wstring Communicate(int cont, SOCKET &obs)
 		settings.close();
 		return poop;
 	}
-	Sleep(50);
-	iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-	if (iResult == SOCKET_ERROR)
+	iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -570,8 +530,8 @@ wstring Communicate(int cont, SOCKET &obs)
 	DEBUG.str(L"");						//should be error id=0
 
 	//clientnamefromuid
-	iResult = send(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
-	if (iResult == SOCKET_ERROR)
+	iResult = sa.send_all(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -581,9 +541,8 @@ wstring Communicate(int cont, SOCKET &obs)
 		settings.close();
 		return poop;
 	}
-	Sleep(50);
-	iResult = recv(obs, reci3, 256, 0);	//recieve name
-	if (iResult == SOCKET_ERROR)
+	iResult = ra.recv_all(obs, reci3, 256, 0, "msg=");	//recieve name
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -656,6 +615,12 @@ wstring Communicate(int cont, SOCKET &obs)
 			}
 			wnewname << wname << L"\n";		//finish name set string
 		}
+
+		rname = wname;
+		if(!rec.empty())
+		{
+			rname.append(rec);
+		}
 	}
 	else	//if using prefix
 	{
@@ -675,11 +640,24 @@ wstring Communicate(int cont, SOCKET &obs)
 			}
 		}
 		wnewname << wname << L"\n";			//finish name set string
+
+		if(!rec.empty())
+		{
+			rname = rec;
+			rname.append(wname);
+		}
+		else
+		{
+			rname = wname;
+		}
 	}
 
-	//name for return
-	wstring rname = rec;
-	rname.append(wname);
+	//no need to send new name if name is not updated
+	if(rec.empty())
+	{
+		AppWarning(TEXT("Communicate: rec is empty"));
+		return rname;
+	}
 
 	AppWarning(wnewname.str().c_str());		//print name being sent
 
@@ -687,8 +665,8 @@ wstring Communicate(int cont, SOCKET &obs)
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
 
 	//clientupdate
-	iResult = send(obs, recname, (int)strlen(recname), 0);
-	if (iResult == SOCKET_ERROR)
+	iResult = sa.send_all(obs, recname, (int)strlen(recname), 0);
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Send Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -698,9 +676,8 @@ wstring Communicate(int cont, SOCKET &obs)
 		settings.close();
 		return poop;
 	}
-	Sleep(50);
-	iResult = recv(obs, reci4, 256 ,0);
-	if (iResult == SOCKET_ERROR)
+	iResult = ra.recv_all(obs, reci4, 256 ,0, "msg=");
+	if (!iResult)
 	{
 		AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -748,7 +725,9 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		return true;
 	}
 
-	int iResult;
+	SendAll sa;
+	RecvAll ra;
+	bool iResult;
 	stringstream sstate;
 	sstate << state << "\n";
 
@@ -760,8 +739,8 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		tempmute.append(sstate.str());
 		const char *mute = tempmute.c_str();
 
-		iResult = send(obs, mute, (int)strlen(mute), 0);	//set mute
-		if (iResult == SOCKET_ERROR)
+		iResult = sa.send_all(obs, mute, (int)strlen(mute), 0);	//set mute
+		if (!iResult)
 		{
 			AppWarning(TEXT("MuteandDeafen: Mute Send Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -771,9 +750,8 @@ bool MuteandDeafen(int state, SOCKET &obs)
 			settings.close();
 			return false;
 		}
-		Sleep(50);
-		iResult = recv(obs, reci1, 256, 0);	//recieve result: error id=0...
-		if (iResult == SOCKET_ERROR)
+		iResult = ra.recv_all(obs, reci1, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
 		{
 			AppWarning(TEXT("MuteandDeafen: Mute Recieve Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -793,8 +771,8 @@ bool MuteandDeafen(int state, SOCKET &obs)
 		tempdeaf.append(sstate.str());
 		const char *deaf = tempdeaf.c_str();
 
-		iResult = send(obs, deaf, (int)strlen(deaf), 0);	//set deafen
-		if (iResult == SOCKET_ERROR)
+		iResult = sa.send_all(obs, deaf, (int)strlen(deaf), 0);	//set deafen
+		if (!iResult)
 		{
 			AppWarning(TEXT("MuteandDeafen: Deaf Send Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -804,9 +782,8 @@ bool MuteandDeafen(int state, SOCKET &obs)
 			settings.close();
 			return false;
 		}
-		Sleep(50);
-		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-		if (iResult == SOCKET_ERROR)
+		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
 		{
 			AppWarning(TEXT("MuteandDeafen: Deaf Recieve Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -849,13 +826,15 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		return true;
 	}
 
-	int iResult;
+	SendAll sa;
+	RecvAll ra;
+	bool iResult;
 	char *whoami = "whoami\n";
 	char reci[256];
 	string truereci, tcid, rcid, clid, cpw;
 
-	iResult = send(obs, whoami, (int)strlen(whoami), 0);	//request whoami
-	if (iResult == SOCKET_ERROR)
+	iResult = sa.send_all(obs, whoami, (int)strlen(whoami), 0);	//request whoami
+	if (!iResult)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Send Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -865,9 +844,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		ssettings.close();
 		return false;
 	}
-	Sleep(50);
-	iResult = recv(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
-	if (iResult == SOCKET_ERROR)
+	iResult = ra.recv_all(obs, reci, 256, 0, "msg=");	//recieve result: clid=XX cid=XXXX
+	if (!iResult)
 	{
 		AppWarning(TEXT("ChannelSwitch: whoami Recieve Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
@@ -925,8 +903,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		channel.append("\n");
 		const char *move = channel.c_str();
 
-		iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
-		if (iResult == SOCKET_ERROR)
+		iResult = sa.send_all(obs, move, (int)strlen(move), 0);	//set deafen
+		if (!iResult)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -936,9 +914,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 			ssettings.close();
 			return false;
 		}
-		Sleep(50);
-		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-		if (iResult == SOCKET_ERROR)
+		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -982,8 +959,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 		channel.append("\n");
 		const char *move = channel.c_str();
 
-		iResult = send(obs, move, (int)strlen(move), 0);	//set deafen
-		if (iResult == SOCKET_ERROR)
+		iResult = sa.send_all(obs, move, (int)strlen(move), 0);	//set deafen
+		if (!iResult)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Send Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
@@ -993,9 +970,8 @@ bool ChannelSwitch(int state, SOCKET &obs)
 			ssettings.close();
 			return false;
 		}
-		Sleep(50);
-		iResult = recv(obs, reci2, 256, 0);	//recieve result: error id=0...
-		if (iResult == SOCKET_ERROR)
+		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
 		{
 			AppWarning(TEXT("ChannelSwitch: Move Recieve Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
