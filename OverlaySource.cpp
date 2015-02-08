@@ -3,6 +3,7 @@ Adapted from TextOutputSource.cpp origionally created by <obs.jim@gmail.com>
 ********************************************************************************/
 #include "OBSApi.h"
 #include "TS3Plugin.h"
+#include "threadSafe.h"
 
 #include <memory>
 #include <windows.h>
@@ -18,11 +19,11 @@ HINSTANCE OvrHinst;
 DWORD fcolour  = 161235 | 0xFFFFFFFF;
 DWORD bgcolour = 161235 | 0xFFFFFFFF;
 DWORD olcolour = 161235 | 0xFFFFFFFF;
-int iname = 10;
-bool bname = false;
-bool bright = false;
-bool btalker = false;
-int italker = 500;
+safeint iname(10);
+safebool bname(false);
+safebool bright(false);
+safebool btalker(false);
+safeint italker(500);
 
 #define ClampVal(val, minVal, maxVal) \
     if(val < minVal) val = minVal; \
@@ -592,10 +593,10 @@ public:
 
 		nameNumber = data->GetInt(TEXT("nameNumber"), 0);
 		iname = data->GetInt(TEXT("nameNumber"), 0);
-		bHideName = data->GetInt(TEXT("bHideName"), bname) != 0;
-		bname = data->GetInt(TEXT("bHideName"), bname) != 0;
-		bright = data->GetInt(TEXT("bRightSymbol"), bright) != 0;
-		btalker = data->GetInt(TEXT("bOnlyTalker"), btalker) != 0;
+		bHideName = data->GetInt(TEXT("bHideName"), bname.value()) != 0;
+		bname = data->GetInt(TEXT("bHideName"), bname.value()) != 0;
+		bright = data->GetInt(TEXT("bRightSymbol"), bright.value()) != 0;
+		btalker = data->GetInt(TEXT("bOnlyTalker"), btalker.value()) != 0;
 		italker = data->GetInt(TEXT("hideTime"), 0);
 
         bUpdateTexture = true;
@@ -941,6 +942,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 					{
 						DWORD ofcolour = fcolour;
 						fcolour = SelectColour(hwnd, ofcolour | 0xFF000000);
+						fcolour = REVERSE_COLOR(fcolour);
 
 						ConfigOverlaySourceInfo *configInfo = (ConfigOverlaySourceInfo*)GetWindowLongPtr(hwnd, DWLP_USER);
                         if(!configInfo) break;
@@ -956,6 +958,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 					{
 						DWORD obgcolour = bgcolour;
 						bgcolour = SelectColour(hwnd, obgcolour | 0xFF000000);
+						bgcolour = REVERSE_COLOR(bgcolour);
 
 						ConfigOverlaySourceInfo *configInfo = (ConfigOverlaySourceInfo*)GetWindowLongPtr(hwnd, DWLP_USER);
                         if(!configInfo) break;
@@ -971,6 +974,7 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
 					{
 						DWORD oolcolour = olcolour | 0xFF000000;
 						olcolour = SelectColour(hwnd, oolcolour);
+						olcolour = REVERSE_COLOR(olcolour);
 
 						ConfigOverlaySourceInfo *configInfo = (ConfigOverlaySourceInfo*)GetWindowLongPtr(hwnd, DWLP_USER);
                         if(!configInfo) break;
@@ -1124,6 +1128,10 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         BOOL bUseOutline = SendMessage(GetDlgItem(hwnd, IDC_USEOUTLINE), BM_GETCHECK, 0, 0) == BST_CHECKED;
                         float outlineSize = (float)SendMessage(GetDlgItem(hwnd, IDC_OUTLINETHICKNESS), UDM_GETPOS32, 0, 0);
 
+						std::wstring path = OBSGetPluginDataPath().Array();
+						path.append(L"\\Overlay.txt");
+						String strFile = path.c_str();
+
                         UINT extentWidth  = (UINT)SendMessage(GetDlgItem(hwnd, IDC_EXTENTWIDTH),  UDM_GETPOS32, 0, 0);
                         UINT extentHeight = (UINT)SendMessage(GetDlgItem(hwnd, IDC_EXTENTHEIGHT), UDM_GETPOS32, 0, 0);
 
@@ -1134,15 +1142,15 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         BOOL bItalic = SendMessage(GetDlgItem(hwnd, IDC_ITALIC), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
 						iname = SendMessage(GetDlgItem(hwnd, IDC_NAME), UDM_GETPOS32, 0, 0);
-						data->SetInt(TEXT("nameNumber"), iname);
+						data->SetInt(TEXT("nameNumber"), iname.value());
 						bname = SendMessage(GetDlgItem(hwnd, IDC_HIDEOWNNAME), BM_GETCHECK, 0, 0) == BST_CHECKED;
-						data->SetInt(TEXT("bHideName"), bname);
+						data->SetInt(TEXT("bHideName"), bname.value());
 						bright = SendMessage(GetDlgItem(hwnd, IDC_RIGHTSYMBOL), BM_GETCHECK, 0, 0) == BST_CHECKED;
-						data->SetInt(TEXT("bRightSymbol"), bright);
+						data->SetInt(TEXT("bRightSymbol"), bright.value());
 						btalker = SendMessage(GetDlgItem(hwnd, IDC_ONLYSPEAKER), BM_GETCHECK, 0, 0) == BST_CHECKED;
-						data->SetInt(TEXT("bOnlyTalker"), btalker);
+						data->SetInt(TEXT("bOnlyTalker"), btalker.value());
 						italker = SendMessage(GetDlgItem(hwnd, IDC_HIDE), UDM_GETPOS32, 0, 0);
-						data->SetInt(TEXT("hideTime"), italker);
+						data->SetInt(TEXT("hideTime"), italker.value());
 
                         BOOL pointFiltering = SendMessage(GetDlgItem(hwnd, IDC_POINTFILTERING), BM_GETCHECK, 0, 0) == BST_CHECKED;
 
@@ -1232,12 +1240,12 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         data->SetFloat(TEXT("baseSizeCX"), configInfo->cx);
                         data->SetFloat(TEXT("baseSizeCY"), configInfo->cy);
 
-						DWORD nfcolour = REVERSE_COLOR(fcolour);
-						DWORD nbgcolour = REVERSE_COLOR(bgcolour);
-						DWORD nolcolour = REVERSE_COLOR(olcolour);
+						/*fcolour = REVERSE_COLOR(fcolour);
+						bgcolour = REVERSE_COLOR(bgcolour);
+						olcolour = REVERSE_COLOR(olcolour);*/
 
                         data->SetString(TEXT("font"), strFont);
-                        data->SetInt(TEXT("color"), nfcolour);
+                        data->SetInt(TEXT("color"), fcolour);
                         data->SetInt(TEXT("fontSize"), fontSize);
                         data->SetInt(TEXT("textOpacity"), (UINT)SendMessage(GetDlgItem(hwnd, IDC_TEXTOPACITY), UDM_GETPOS32, 0, 0));
                         data->SetInt(TEXT("bold"), bBold);
@@ -1246,11 +1254,11 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         data->SetInt(TEXT("underline"), SendMessage(GetDlgItem(hwnd, IDC_UNDERLINE), BM_GETCHECK, 0, 0) == BST_CHECKED);
                         data->SetInt(TEXT("pointFiltering"), pointFiltering);
 
-                        data->SetInt(TEXT("backgroundColor"), nbgcolour);
+                        data->SetInt(TEXT("backgroundColor"), bgcolour);
                         data->SetInt(TEXT("backgroundOpacity"), (UINT)SendMessage(GetDlgItem(hwnd, IDC_BACKGROUNDOPACITY), UDM_GETPOS32, 0, 0));
 
                         data->SetInt(TEXT("useOutline"), bUseOutline);
-                        data->SetInt(TEXT("outlineColor"), nolcolour);
+                        data->SetInt(TEXT("outlineColor"), olcolour);
                         data->SetFloat(TEXT("outlineSize"), outlineSize);
                         data->SetInt(TEXT("outlineOpacity"), (UINT)SendMessage(GetDlgItem(hwnd, IDC_OUTLINEOPACITY), UDM_GETPOS32, 0, 0));
 
@@ -1259,11 +1267,14 @@ INT_PTR CALLBACK ConfigureOverlayProc(HWND hwnd, UINT message, WPARAM wParam, LP
                         data->SetInt(TEXT("extentHeight"), extentHeight);
                         data->SetInt(TEXT("align"), (int)SendMessage(GetDlgItem(hwnd, IDC_ALIGN), CB_GETCURSEL, 0, 0));
 
-						data->SetInt(TEXT("nameNumber"), iname);
-						data->SetInt(TEXT("bHideName"), bname);
-						data->SetInt(TEXT("bRightSymbol"), bright);
-						data->SetInt(TEXT("bOnlyTalker"), btalker);
-						data->SetInt(TEXT("hideTime"), italker);
+						data->SetString(TEXT("file"), strFile);
+						data->SetInt(TEXT("mode"), 1);
+
+						data->SetInt(TEXT("nameNumber"), iname.value());
+						data->SetInt(TEXT("bHideName"), bname.value());
+						data->SetInt(TEXT("bRightSymbol"), bright.value());
+						data->SetInt(TEXT("bOnlyTalker"), btalker.value());
+						data->SetInt(TEXT("hideTime"), italker.value());
                     }
 
                 case IDCANCEL:
@@ -1309,25 +1320,25 @@ bool STDCALL ConfigureOverlaySource(XElement *element, bool bCreating)
 
 int GetNumberOfNames()
 {
-	return iname;
+	return iname.value();
 }
 
 bool GetHideSelf()
 {
-	return bname;
+	return bname.value();
 }
 
 bool GetRightOfSymbol()
 {
-	return bright;
+	return bright.value();
 }
 
 bool GetOnlyShowTalker()
 {
-	return btalker;
+	return btalker.value();
 }
 
 int GetHideNameAfter()
 {
-	return italker;
+	return italker.value();
 }

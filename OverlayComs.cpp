@@ -332,22 +332,23 @@ void RunOverlay(char* adrs)
 			iname = namesize;
 		}
 
-		for(int i = 0; i < iname; i++)
+		//normal
+		if(!btalker)
 		{
-			if(name[i].empty())
+			for(int i = 0; i < iname; i++)
 			{
-				break;
-			}
-			wReplaceAll(name[i], L"\\s", L" ");
-			if(bname && name[i] == userName)
-			{
-				//do nothing
-			}
-			else
-			{
-				wstring wsTmp(name[i].begin(), name[i].end());
-				if(!btalker)
+				if(name[i].empty())
 				{
+					break;
+				}
+				wReplaceAll(name[i], L"\\s", L" ");
+				if(bname && name[i] == userName)
+				{
+					//do nothing
+				}
+				else
+				{
+					wstring wsTmp(name[i].begin(), name[i].end());
 					if(!bright)
 					{
 						if(talk[i])
@@ -370,9 +371,26 @@ void RunOverlay(char* adrs)
 							fOverlay << wsTmp << L"\u25CB" << endl;
 						}
 					}
-				}//if(!btalker)
+				}
+			}//end for(int i...
+		}
+		//Only show talkers
+		else
+		{
+			for(int i = 0; i < iname; i++)
+			{
+				if(name[i].empty())
+				{
+					break;
+				}
+				wReplaceAll(name[i], L"\\s", L" ");
+				if(bname && name[i] == userName)
+				{
+					//do nothing
+				}
 				else
 				{
+					wstring wsTmp(name[i].begin(), name[i].end());
 					if(talk[i])
 					{
 						bsaid = false;
@@ -397,18 +415,19 @@ void RunOverlay(char* adrs)
 						{
 							bsaid = false;
 						}
-					}
-					//Print
-					if(static_cast<int>(vname.size()) > 0)
-					{
-						for(int j = 0; j < static_cast<int>(vname.size()); j++)
-						{
-							fOverlay << vname[j] << endl;
-						}
-					}
-				}//else
+					}//end if(talk[i])
+				}
+			}//end for(int i...
+
+			//Print
+			if(static_cast<int>(vname.size()) > 0)
+			{
+				for(int j = 0; j < static_cast<int>(vname.size()); j++)
+				{
+					fOverlay << vname[j] << endl;
+				}
 			}
-		}//for(int i...
+		}//end Only Show talkers
 
 		fOverlay.close();
 

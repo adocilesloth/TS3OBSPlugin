@@ -30,6 +30,9 @@
     <ClInclude Include="socketSRall.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="threadSafe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TS3Plugin.cpp">
