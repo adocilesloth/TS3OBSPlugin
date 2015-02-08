@@ -162,7 +162,7 @@ void RunOverlay(char* adrs)
 				rename = false;
 			}
 		}
-		
+
 		//get cid
 		iResult = sa.send_all(overlay, whoami, (int)strlen(whoami), 0);	//send whoami
 		if (!iResult)
@@ -185,7 +185,9 @@ void RunOverlay(char* adrs)
 			goto skip;
 		}
 		tempstr = reci2;
-		if(tempstr.substr(0, 13) == "error id=1794")
+		identstart = "msg=";
+		startpos = tempstr.find(identstart);
+		if(tempstr.substr(startpos, 5) == "msg=n")
 		{
 			if(noserv)	//if initial disconnection
 			{
@@ -195,14 +197,21 @@ void RunOverlay(char* adrs)
 				bCom = false;
 				bMnD = false;
 				bSwt = false;
-				rename = true;
+				rename = false;
 			}
+			memset(reci2, 0, 64);
 			fOverlay.open(path);			//empty client list text file if not on server
 			fOverlay.close();
 			goto skip;
 		}
+		tempstr = "";
 
-		noserv = true;
+		if(!noserv)
+		{
+			AppWarning(TEXT("Overlay: Now Connected to TS3 Server"));
+			rename = true;
+			noserv = true;
+		}
 
 		identstart = "cid=";
 		identend = "\n";

@@ -496,7 +496,7 @@ wstring Communicate(int cont, SOCKET &obs)
 	wstring rname;
 
 	//debug string
-	wstringstream DEBUG;
+	//wstringstream DEBUG;
 
 	//notifyregister
 	iResult = sa.send_all(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
@@ -522,12 +522,12 @@ wstring Communicate(int cont, SOCKET &obs)
 		return poop;
 	}
 
-	for(int i = 0; i < 10; i++)
+	/*for(int i = 0; i < 10; i++)
 	{
 		DEBUG << reci2[i];
 	}
 	AppWarning(DEBUG.str().c_str());	//should not be Welcome to
-	DEBUG.str(L"");						//should be error id=0
+	DEBUG.str(L"");						//should be error id=0*/
 
 	//clientnamefromuid
 	iResult = sa.send_all(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
@@ -553,12 +553,12 @@ wstring Communicate(int cont, SOCKET &obs)
 		return poop;
 	}
 
-	for(int i = 0; i < 10; i++)
+	/*for(int i = 0; i < 10; i++)
 	{
 		DEBUG << reci3[i];
 	}
 	AppWarning(DEBUG.str().c_str());	//should not be error id=0
-	DEBUG.str(L"");						//should be notifyclie
+	DEBUG.str(L"");						//should be notifyclie*/
 
 	//get name
 	wstring identstart = L"name=";
@@ -659,7 +659,7 @@ wstring Communicate(int cont, SOCKET &obs)
 		return rname;
 	}
 
-	AppWarning(wnewname.str().c_str());		//print name being sent
+	//AppWarning(wnewname.str().c_str());		//print name being sent
 
 	const string tmp = ws2s(wnewname.str());	//set name to string
 	const char* recname = tmp.c_str();	//set name to char* so it can be sent
@@ -688,12 +688,12 @@ wstring Communicate(int cont, SOCKET &obs)
 		return poop;
 	}
 
-	for(int i = 0; i < 50; i++)
+	/*for(int i = 0; i < 50; i++)
 	{
 		DEBUG << reci4[i];
 	}
 	AppWarning(DEBUG.str().c_str());	//should be error id=0
-	DEBUG.str(L"");
+	DEBUG.str(L"");*/
 
 	//file.close();
 	settings.close();
