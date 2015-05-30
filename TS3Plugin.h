@@ -5,6 +5,7 @@
 #include "OBSApi.h"
 #include "resource.h"
 #include <string>
+#include <vector>
 
 #define WIN32_MEAN_AND_LEAN
 #include <winsock2.h>
@@ -24,8 +25,8 @@ bool ConnectToHost(int, char*, SOCKET&);
 void CloseConnection(SOCKET&);
 
 char* getIP();
-std::wstring Communicate(int, SOCKET&);
-bool MuteandDeafen(int, SOCKET&);
+std::wstring Communicate(int, SOCKET&, std::vector<std::string>&);
+bool MuteandDeafen(int, SOCKET&, std::vector<std::string>&);
 bool ChannelSwitch(int, SOCKET&);
 int countSubstring(const std::string&, const std::string&);
 int wcountSubstring(const std::wstring&, const std::wstring&);

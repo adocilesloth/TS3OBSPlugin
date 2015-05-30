@@ -53,8 +53,10 @@ void RunOverlay(char* adrs)
 	char reci2[64];
 	vector<char> reci3;
 	int reci3Size;
+	char reci4[256];
 
 	char* whoami = "whoami\n";
+	char* schandlerlist = "serverconnectionhandlerlist\n";
 
 	//string location
 	string identstart;
@@ -81,6 +83,7 @@ void RunOverlay(char* adrs)
 	wstring userName;
 	bool bMnD = false;
 	bool bSwt = false;
+	vector<string> schandlerid;
 
 	//File stuff
 	wstring path = OBSGetPluginDataPath().Array();
@@ -133,9 +136,47 @@ void RunOverlay(char* adrs)
 
 		if(rename)
 		{
+			iResult = sa.send_all(overlay, schandlerlist, (int)strlen(schandlerlist), 0);	//send serverconnectionhandlerlist
+			if(!iResult)
+			{
+				AppWarning(TEXT("Overlay: schandlerlist Send Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				goto skip;
+			}
+			iResult = ra.recv_all(overlay, reci4, 256, 0, "msg=");	//get serverconnectionhandlerlist
+			if (!iResult)
+			{
+				AppWarning(TEXT("Overlay: schandlerlist Recieve Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				goto skip;
+			}
+			tempstr = reci4;
+			memset(reci4, 0, 256);
+
+			while(tempstr.size() > 12)
+			{
+				identstart = "sch";
+				startpos = tempstr.find(identstart);
+				if(startpos > 0 && startpos < tempstr.size())
+				{
+					schandlerid.push_back(tempstr.substr(startpos, 13));
+				}
+				else
+				{
+					break;
+				}
+				tempstr = tempstr.substr(startpos + 13, tempstr.size() - (startpos + 13));
+			}
+
 			if(!bCom)
 			{
-				userName = Communicate(1, overlay);
+				userName = Communicate(1, overlay, schandlerid);
 				if(userName != L"poop")
 				{
 					wReplaceAll(userName, L"\\s", L" ");
@@ -148,7 +189,7 @@ void RunOverlay(char* adrs)
 			}
 			if(!bMnD)
 			{
-				bMnD = MuteandDeafen(1, overlay);
+				bMnD = MuteandDeafen(1, overlay, schandlerid);
 			}
 			if(!bSwt)
 			{
@@ -161,6 +202,7 @@ void RunOverlay(char* adrs)
 				bSwt = false;
 				rename = false;
 			}
+			schandlerid.clear();
 		}
 
 		//get cid
@@ -174,6 +216,7 @@ void RunOverlay(char* adrs)
 			AppWarning(code.str().c_str());
 			goto skip;
 		}
+
 		iResult = ra.recv_all(overlay, reci2, 64 ,0 ,"msg=");	//get whoami
 		if (!iResult)
 		{
@@ -479,8 +522,46 @@ skip:
 		AppWarning(code.str().c_str());
 	}
 
-	Communicate(0, overlay);
-	MuteandDeafen(0, overlay);
+	iResult = sa.send_all(overlay, schandlerlist, (int)strlen(schandlerlist), 0);	//send serverconnectionhandlerlist
+	if(!iResult)
+	{
+		AppWarning(TEXT("Overlay: schandlerlist Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
+		goto skip;
+	}
+	iResult = ra.recv_all(overlay, reci4, 256, 0, "msg=");	//get serverconnectionhandlerlist
+	if (!iResult)
+	{
+		AppWarning(TEXT("Overlay: schandlerlist Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
+		goto skip;
+	}
+	tempstr = reci4;
+	memset(reci4, 0, 256);
+
+	while(tempstr.size() > 12)
+	{
+		identstart = "sch";
+		startpos = tempstr.find(identstart);
+		if(startpos > 0 && startpos < tempstr.size())
+		{
+			schandlerid.push_back(tempstr.substr(startpos, 13));
+		}
+		else
+		{
+			break;
+		}
+		tempstr = tempstr.substr(startpos + 13, tempstr.size() - (startpos + 13));
+	}
+
+	Communicate(0, overlay, schandlerid);
+	MuteandDeafen(0, overlay, schandlerid);
 	ChannelSwitch(0, overlay);
 	CloseConnection(overlay);
 

@@ -36,7 +36,7 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
 	wstring wip, wuid, wpref, wmute, wchan, wcid, wpw;	//sending strings
 
-	bool bmute, bdeaf, bchan;		//bools for checkboxes
+	bool bmute, bdeaf, bchan, bpsas, bmdas;		//bools for checkboxes
 	int length;
 	wstring path = OBSGetPluginDataPath().Array();
 	wofstream osettings;
@@ -96,6 +96,9 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 	getline(settings, wpw);		//gets cpw
 	wpw = wpw.substr(5, wpw.length() - 5);	//remove  cpw=
 	//wpw = wstring(spw.begin(), spw.end());
+	settings >> bpsas;	//bool prefix/suffix, so dump it
+	settings >> bpsas;
+	settings >> bmdas;
 
 	settings.close();
 
@@ -152,6 +155,22 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			ShowWindow(GetDlgItem(hWnd, IDC_PREFTXT), SW_SHOW);
 			ShowWindow(GetDlgItem(hWnd, IDC_ESUFFTXT), SW_HIDE);
 			ShowWindow(GetDlgItem(hWnd, IDC_SUFFTXT), SW_HIDE);
+		}
+		if(bpsas)
+		{
+			SendMessage(GetDlgItem(hWnd, IDC_CAS), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
+		}
+		else
+		{
+			SendMessage(GetDlgItem(hWnd, IDC_CAS), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
+		}
+		if(bmdas)
+		{
+			SendMessage(GetDlgItem(hWnd, MASChk), BM_SETCHECK, true ? BST_CHECKED : BST_UNCHECKED, 0);
+		}
+		else
+		{
+			SendMessage(GetDlgItem(hWnd, MASChk), BM_SETCHECK, false ? BST_CHECKED : BST_UNCHECKED, 0);
 		}
 	}
 
@@ -227,8 +246,14 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			GlobalFree(pwbuf);			//clear buffer
 
 			bool bpre = SendMessage(GetDlgItem(hWnd, IDC_PRE), BM_GETCHECK, 0, 0) == BST_CHECKED;
-			osettings << bpre;			//write pefix
-			bprefix = bpre;				//and reassign global
+			osettings << bpre << endl;		//write pefix
+			bprefix = bpre;					//and reassign global
+
+			bpsas = SendMessage(GetDlgItem(hWnd, IDC_CAS), BM_GETCHECK, 0, 0) == BST_CHECKED;
+			bmdas = SendMessage(GetDlgItem(hWnd, MASChk), BM_GETCHECK, 0, 0) == BST_CHECKED;
+
+			osettings << bpsas << endl;
+			osettings << bmdas;
 
 			//clean up
 			osettings.close();
@@ -257,9 +282,11 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 				ShowWindow(GetDlgItem(hWnd, CHANTxt), SW_HIDE);
 				EnableWindow(GetDlgItem(hWnd, PWEdt), false);
 			}
+			break;
 		}
 		case CHANBut:
 		{
+
 			char *adrs = getIP();
 
 			if(!ConnectToHost(25639, adrs, obs))
@@ -283,19 +310,18 @@ INT_PTR CALLBACK ConfigDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 					AppWarning(TEXT("whoami Send Failure"));
 					break;
 				}
-
-				iResult = ra.recv_all(obs, reci, 256, 0);	//recieve result: clid=XX cid=XXXX
+				iResult = ra.recv_all(obs, reci, 256, 0, "msg=");	//recieve result: clid=XX cid=XXXX
 				if (!iResult)
 				{
 					AppWarning(TEXT("whoami Recieve Failure"));
 					break;
 				}
-
 				truereci = reci;
 				truereci = truereci.substr(0, 5);
 				i++;
+
 			}while (truereci != "clid=" && i < 10);	//while reci returns the wrong string
-			
+
 			if(truereci != "clid=")
 			{
 				break;
@@ -364,7 +390,9 @@ bool LoadPlugin()
 		create << L"0" << endl;
 		create << L"cid=1" << endl;
 		create << L" cpw=" << endl;
-		create << L"1";
+		create << L"1" << endl;
+		create << L"0" << endl;		//multi server name
+		create << L"0";				//multi server mute/deafen
 		create.close();		//stop using settings file
 
 		cid = L"cid=1";		//set cid string
@@ -449,7 +477,7 @@ char* getIP()
 	return IPadrs;
 }
 
-wstring Communicate(int cont, SOCKET &obs)
+wstring Communicate(int cont, SOCKET &obs, vector<string> &schandlerid)
 {
 	AppWarning(TEXT("Communicate"));
 
@@ -460,14 +488,22 @@ wstring Communicate(int cont, SOCKET &obs)
 	SendAll sa;
 	RecvAll ra;
 	bool iResult;
-	char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
+	//char *notify = "clientnotifyregister schandlerid=1 event=notifyclientnamefromuid\n";
+	const char *notify;
+	string snotify;
 	wstringstream wnewname;
-	wnewname << L"clientupdate client_nickname=";
 	char reci2[256];
 	char reci3[256];
 	char reci4[256];
 	string space = "\\s";
 	wstring wspace = L"\\s";
+
+	wstring temp;
+	bool multiChange;
+	string sendschandlerid;
+
+	string tmp;
+	const char* recname;
 
 	//debug file
 	//file.open("C:/Program Files (x86)/OBS/plugins/outfile.txt");
@@ -484,6 +520,11 @@ wstring Communicate(int cont, SOCKET &obs)
 	getline(settings, rec);
 	wReplaceAll(rec, L" ", wspace);		//replace spaces with \s
 	int modcount = wcountSubstring(rec, wspace);	//number of \s
+	for(int i = 0; i < 5; i++)
+	{
+		getline(settings, temp);
+	}
+	settings >> multiChange;
 
 	//set up the getname call
 	wstring wtempgetname = L"clientgetnamefromuid ";
@@ -498,11 +539,257 @@ wstring Communicate(int cont, SOCKET &obs)
 	//debug string
 	//wstringstream DEBUG;
 
-	//notifyregister
-	iResult = sa.send_all(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
+	int numServer;
+	if(multiChange)
+	{
+		numServer = schandlerid.size();
+	}
+	else
+	{
+		numServer = 1;
+	}
+
+	for(int i = 0; i < numServer; i++)
+	{
+		wnewname << L"clientupdate client_nickname=";
+		snotify = "clientnotifyregister " + schandlerid[i] + " event=notifyclientnamefromuid\n";
+		notify = snotify.c_str();
+		sendschandlerid = "use " + schandlerid[i] + "\n";
+
+		//set server to notify on
+		iResult = sa.send_all(obs, sendschandlerid.c_str(), sendschandlerid.size(), 0);	//use schandlerid=i
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: useschandlerid=i Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: useschandlerid=i Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+		memset(reci2, 0, 256);
+
+		//notifyregister
+		iResult = sa.send_all(obs, notify, (int)strlen(notify), 0);	//request notifyregister...
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: notifyregister Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+
+		/*for(int i = 0; i < 10; i++)
+		{
+			DEBUG << reci2[i];
+		}
+		AppWarning(DEBUG.str().c_str());	//should not be Welcome to
+		DEBUG.str(L"");						//should be error id=0*/
+
+		//clientnamefromuid
+		iResult = sa.send_all(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+		iResult = ra.recv_all(obs, reci3, 256, 0, "msg=");	//recieve name
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+
+		/*for(int i = 0; i < 10; i++)
+		{
+			DEBUG << reci3[i];
+		}
+		AppWarning(DEBUG.str().c_str());	//should not be error id=0
+		DEBUG.str(L"");						//should be notifyclie*/
+
+		//get name
+		wstring identstart = L"name=";
+		wstring identend = L"\n";
+		string name = reci3;
+		wstring wname = s2ws(name);
+	
+		size_t startpos = wname.find(identstart);	//start of name
+		if(startpos == -1)
+		{
+			AppWarning(TEXT("Communicate: startpos == -1"));
+			goto endofif;
+		}
+		size_t endpos = wname.find(identend);
+		if(endpos < startpos)
+		{
+			AppWarning(TEXT("Communicate: endpos < startpos"));
+			goto endofif;
+		}
+		wname = wname.substr(startpos+5, endpos-startpos-5);
+		int count = wcountSubstring(wname, wspace);	//number of \s
+		//wname = wname.substr(startpos+5 , 30 + count);
+		//get name end
+
+		if(!bprefix)	//if using suffix
+		{
+			size_t spc = wname.find(L"\n");
+			wname = wname.substr(0, spc);
+			int nstrt = wname.length();
+			nstrt = nstrt - rec.length();
+			if(nstrt < 0)
+			{
+			nstrt = 0;
+			}
+			int nlen = wname.length() - count;
+	
+			if(cont == 1)			//adding modifier
+			{
+				if(wname.substr(nstrt) != rec)
+				{
+					if(nlen > 30)
+					{
+						wname = wname.substr(0, 30 + count - rec.length());
+					}
+					wnewname << wname
+							 << rec << L"\n";		//finish name set string
+				}
+			}
+			else if(cont == 0)		//removing modifier
+			{
+				if(wname.substr(nstrt) == rec)
+				{
+					wname = wname.substr(0, nlen + count - rec.length());
+				}
+				wnewname << wname << L"\n";		//finish name set string
+			}
+
+			rname = wname;
+			if(!rec.empty())
+			{
+				rname.append(rec);
+			}
+		}
+		else	//if using prefix
+		{
+			if(cont == 1)			//adding modifier
+			{
+				if(wname.substr(0, rec.length()) != rec)
+				{
+					wname = wname.substr(0, 30 + count - rec.length());
+					wnewname << rec;	//finish name set string
+				}
+			}
+			else if(cont == 0)		//removing modifier
+			{
+				if(wname.substr(0, rec.length()) == rec)
+				{
+					wname = wname.substr(rec.length(), 30 + count - modcount - rec.length());
+				}
+			}
+			wnewname << wname << L"\n";			//finish name set string
+
+			if(!rec.empty())
+			{
+				rname = rec;
+				rname.append(wname);
+			}
+			else
+			{
+				rname = wname;
+			}
+		}
+
+		//no need to send new name if name is not updated
+		if(rec.empty())
+		{
+			AppWarning(TEXT("Communicate: rec is empty"));
+			goto endofif;
+		}
+
+		//AppWarning(wnewname.str().c_str());		//print name being sent
+
+		tmp = ws2s(wnewname.str());	//set name to string
+		recname = tmp.c_str();	//set name to char* so it can be sent
+
+		//clientupdate
+		iResult = sa.send_all(obs, recname, (int)strlen(recname), 0);
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: clientupdate Send Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+		iResult = ra.recv_all(obs, reci4, 256 ,0, "msg=");
+		if (!iResult)
+		{
+			AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
+			AppWarning(TEXT("SOCKET_ERROR"));
+			wstringstream code;
+			code << WSAGetLastError();
+			AppWarning(code.str().c_str());
+			settings.close();
+			return poop;
+		}
+
+		/*for(int i = 0; i < 50; i++)
+		{
+			DEBUG << reci4[i];
+		}
+		AppWarning(DEBUG.str().c_str());	//should be error id=0
+		DEBUG.str(L"");*/
+endofif:
+		wnewname.str(L"");
+		memset(reci2, 0, 256);
+		memset(reci3, 0, 256);
+		memset(reci4, 0, 256);
+	}
+
+	//return to default server
+	sendschandlerid = "use " + schandlerid[0] + "\n";
+	iResult = sa.send_all(obs, sendschandlerid.c_str(), sendschandlerid.size(), 0);	//use schandlerid=i
 	if (!iResult)
 	{
-		AppWarning(TEXT("Communicate: notifyregister Send Failure"));
+		AppWarning(TEXT("Communicate: useschandlerid=0 Send Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
 		wstringstream code;
 		code << WSAGetLastError();
@@ -513,7 +800,7 @@ wstring Communicate(int cont, SOCKET &obs)
 	iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
 	if (!iResult)
 	{
-		AppWarning(TEXT("Communicate: notifyregister Recieve Failure"));
+		AppWarning(TEXT("Communicate: useschandlerid=0r Recieve Failure"));
 		AppWarning(TEXT("SOCKET_ERROR"));
 		wstringstream code;
 		code << WSAGetLastError();
@@ -521,186 +808,13 @@ wstring Communicate(int cont, SOCKET &obs)
 		settings.close();
 		return poop;
 	}
-
-	/*for(int i = 0; i < 10; i++)
-	{
-		DEBUG << reci2[i];
-	}
-	AppWarning(DEBUG.str().c_str());	//should not be Welcome to
-	DEBUG.str(L"");						//should be error id=0*/
-
-	//clientnamefromuid
-	iResult = sa.send_all(obs, getname, (int)strlen(getname), 0);	//request clientnamefromuid...
-	if (!iResult)
-	{
-		AppWarning(TEXT("Communicate: clientnamefromuid Send Failure"));
-		AppWarning(TEXT("SOCKET_ERROR"));
-		wstringstream code;
-		code << WSAGetLastError();
-		AppWarning(code.str().c_str());
-		settings.close();
-		return poop;
-	}
-	iResult = ra.recv_all(obs, reci3, 256, 0, "msg=");	//recieve name
-	if (!iResult)
-	{
-		AppWarning(TEXT("Communicate: clientnamefromuid Recieve Failure"));
-		AppWarning(TEXT("SOCKET_ERROR"));
-		wstringstream code;
-		code << WSAGetLastError();
-		AppWarning(code.str().c_str());
-		settings.close();
-		return poop;
-	}
-
-	/*for(int i = 0; i < 10; i++)
-	{
-		DEBUG << reci3[i];
-	}
-	AppWarning(DEBUG.str().c_str());	//should not be error id=0
-	DEBUG.str(L"");						//should be notifyclie*/
-
-	//get name
-	wstring identstart = L"name=";
-	wstring identend = L"\n";
-	string name = reci3;
-	wstring wname = s2ws(name);
-
-	size_t startpos = wname.find(identstart);	//start of name
-	if(startpos == -1)
-	{
-		AppWarning(TEXT("Communicate: startpos == -1"));
-		return poop;
-	}
-	size_t endpos = wname.find(identend);
-	if(endpos < startpos)
-	{
-		AppWarning(TEXT("Communicate: endpos < startpos"));
-		return poop;
-	}
-	wname = wname.substr(startpos+5, endpos-startpos-5);
-	int count = wcountSubstring(wname, wspace);	//number of \s
-	//wname = wname.substr(startpos+5 , 30 + count);
-	//get name end
-
-	if(!bprefix)	//if using suffix
-	{
-		size_t spc = wname.find(L"\n");
-		wname = wname.substr(0, spc);
-		int nstrt = wname.length();
-		nstrt = nstrt - rec.length();
-		if(nstrt < 0)
-		{
-			nstrt = 0;
-		}
-		int nlen = wname.length() - count;
-
-		if(cont == 1)			//adding modifier
-		{
-			if(wname.substr(nstrt) != rec)
-			{
-				if(nlen > 30)
-				{
-					wname = wname.substr(0, 30 + count - rec.length());
-				}
-				wnewname << wname
-						 << rec << L"\n";		//finish name set string
-			}
-		}
-		else if(cont == 0)		//removing modifier
-		{
-			if(wname.substr(nstrt) == rec)
-			{
-				wname = wname.substr(0, nlen + count - rec.length());
-			}
-			wnewname << wname << L"\n";		//finish name set string
-		}
-
-		rname = wname;
-		if(!rec.empty())
-		{
-			rname.append(rec);
-		}
-	}
-	else	//if using prefix
-	{
-		if(cont == 1)			//adding modifier
-		{
-			if(wname.substr(0, rec.length()) != rec)
-			{
-				wname = wname.substr(0, 30 + count - rec.length());
-				wnewname << rec;	//finish name set string
-			}
-		}
-		else if(cont == 0)		//removing modifier
-		{
-			if(wname.substr(0, rec.length()) == rec)
-			{
-				wname = wname.substr(rec.length(), 30 + count - modcount - rec.length());
-			}
-		}
-		wnewname << wname << L"\n";			//finish name set string
-
-		if(!rec.empty())
-		{
-			rname = rec;
-			rname.append(wname);
-		}
-		else
-		{
-			rname = wname;
-		}
-	}
-
-	//no need to send new name if name is not updated
-	if(rec.empty())
-	{
-		AppWarning(TEXT("Communicate: rec is empty"));
-		return rname;
-	}
-
-	//AppWarning(wnewname.str().c_str());		//print name being sent
-
-	const string tmp = ws2s(wnewname.str());	//set name to string
-	const char* recname = tmp.c_str();	//set name to char* so it can be sent
-
-	//clientupdate
-	iResult = sa.send_all(obs, recname, (int)strlen(recname), 0);
-	if (!iResult)
-	{
-		AppWarning(TEXT("Communicate: clientupdate Send Failure"));
-		AppWarning(TEXT("SOCKET_ERROR"));
-		wstringstream code;
-		code << WSAGetLastError();
-		AppWarning(code.str().c_str());
-		settings.close();
-		return poop;
-	}
-	iResult = ra.recv_all(obs, reci4, 256 ,0, "msg=");
-	if (!iResult)
-	{
-		AppWarning(TEXT("Communicate: clientupdate Recieve Failure"));
-		AppWarning(TEXT("SOCKET_ERROR"));
-		wstringstream code;
-		code << WSAGetLastError();
-		AppWarning(code.str().c_str());
-		settings.close();
-		return poop;
-	}
-
-	/*for(int i = 0; i < 50; i++)
-	{
-		DEBUG << reci4[i];
-	}
-	AppWarning(DEBUG.str().c_str());	//should be error id=0
-	DEBUG.str(L"");*/
 
 	//file.close();
 	settings.close();
 	return rname;
 }
 
-bool MuteandDeafen(int state, SOCKET &obs)
+bool MuteandDeafen(int state, SOCKET &obs, vector<string> &schandlerid)
 {
 	AppWarning(TEXT("MuteandDeafen"));
 
@@ -731,18 +845,36 @@ bool MuteandDeafen(int state, SOCKET &obs)
 	stringstream sstate;
 	sstate << state << "\n";
 
-	if(mnd == L"1" || mnd == L"3")	//if set to mute
+	bool multiChange;
+	wstring wstempws;
+	for(int i = 0; i < 5; i++)
 	{
-		char reci1[256];;
+		getline(settings, wstempws);
+	}
+	settings >> multiChange;
 
-		string tempmute = "clientupdate client_input_muted=";
-		tempmute.append(sstate.str());
-		const char *mute = tempmute.c_str();
+	int numServer;
+	if(multiChange)
+	{
+		numServer = schandlerid.size();
+	}
+	else
+	{
+		numServer = 1;
+	}
 
-		iResult = sa.send_all(obs, mute, (int)strlen(mute), 0);	//set mute
+	char reci3[256];
+	string sendschandlerid;
+
+	for(int i = 0; i < numServer; i++)
+	{
+		sendschandlerid = "use " + schandlerid[i] + "\n";
+
+		//set server to notify on
+		iResult = sa.send_all(obs, sendschandlerid.c_str(), sendschandlerid.size(), 0);	//use schandlerid=i
 		if (!iResult)
 		{
-			AppWarning(TEXT("MuteandDeafen: Mute Send Failure"));
+			AppWarning(TEXT("MuteandDeafen: useschandlerid=i Send Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
 			wstringstream code;
 			code << WSAGetLastError();
@@ -750,49 +882,107 @@ bool MuteandDeafen(int state, SOCKET &obs)
 			settings.close();
 			return false;
 		}
-		iResult = ra.recv_all(obs, reci1, 256, 0, "msg=");	//recieve result: error id=0...
+		iResult = ra.recv_all(obs, reci3, 256, 0, "msg=");	//recieve result: error id=0...
 		if (!iResult)
 		{
-			AppWarning(TEXT("MuteandDeafen: Mute Recieve Failure"));
+			AppWarning(TEXT("MuteandDeafen: useschandlerid=i Recieve Failure"));
 			AppWarning(TEXT("SOCKET_ERROR"));
 			wstringstream code;
 			code << WSAGetLastError();
 			AppWarning(code.str().c_str());
 			settings.close();
 			return false;
+		}
+		memset(reci3, 0, 256);
+
+		if(mnd == L"1" || mnd == L"3")	//if set to mute
+		{
+			char reci1[256];;
+
+			string tempmute = "clientupdate client_input_muted=";
+			tempmute.append(sstate.str());
+			const char *mute = tempmute.c_str();
+
+			iResult = sa.send_all(obs, mute, (int)strlen(mute), 0);	//set mute
+			if (!iResult)
+			{
+				AppWarning(TEXT("MuteandDeafen: Mute Send Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				settings.close();
+				return false;
+			}
+			iResult = ra.recv_all(obs, reci1, 256, 0, "msg=");	//recieve result: error id=0...
+			if (!iResult)
+			{
+				AppWarning(TEXT("MuteandDeafen: Mute Recieve Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				settings.close();
+				return false;
+			}
+		}
+
+		if(mnd == L"2" || mnd == L"3")
+		{
+			char reci2[256];
+	
+			string tempdeaf = "clientupdate client_output_muted=";
+			tempdeaf.append(sstate.str());
+			const char *deaf = tempdeaf.c_str();
+
+			iResult = sa.send_all(obs, deaf, (int)strlen(deaf), 0);	//set deafen
+			if (!iResult)
+			{
+				AppWarning(TEXT("MuteandDeafen: Deaf Send Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				settings.close();
+				return false;
+			}
+			iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
+			if (!iResult)
+			{
+				AppWarning(TEXT("MuteandDeafen: Deaf Recieve Failure"));
+				AppWarning(TEXT("SOCKET_ERROR"));
+				wstringstream code;
+				code << WSAGetLastError();
+				AppWarning(code.str().c_str());
+				settings.close();
+				return false;
+			}
 		}
 	}
 
-	if(mnd == L"2" || mnd == L"3")
+	//return to default server
+	sendschandlerid = "use " + schandlerid[0] + "\n";
+	iResult = sa.send_all(obs, sendschandlerid.c_str(), sendschandlerid.size(), 0);	//use schandlerid=0
+	if (!iResult)
 	{
-		char reci2[256];
-	
-		string tempdeaf = "clientupdate client_output_muted=";
-		tempdeaf.append(sstate.str());
-		const char *deaf = tempdeaf.c_str();
-
-		iResult = sa.send_all(obs, deaf, (int)strlen(deaf), 0);	//set deafen
-		if (!iResult)
-		{
-			AppWarning(TEXT("MuteandDeafen: Deaf Send Failure"));
-			AppWarning(TEXT("SOCKET_ERROR"));
-			wstringstream code;
-			code << WSAGetLastError();
-			AppWarning(code.str().c_str());
-			settings.close();
-			return false;
-		}
-		iResult = ra.recv_all(obs, reci2, 256, 0, "msg=");	//recieve result: error id=0...
-		if (!iResult)
-		{
-			AppWarning(TEXT("MuteandDeafen: Deaf Recieve Failure"));
-			AppWarning(TEXT("SOCKET_ERROR"));
-			wstringstream code;
-			code << WSAGetLastError();
-			AppWarning(code.str().c_str());
-			settings.close();
-			return false;
-		}
+		AppWarning(TEXT("Communicate: useschandlerid=0 Send Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
+		settings.close();
+		return false;
+	}
+	iResult = ra.recv_all(obs, reci3, 256, 0, "msg=");	//recieve result: error id=0...
+	if (!iResult)
+	{
+		AppWarning(TEXT("Communicate: useschandlerid=0r Recieve Failure"));
+		AppWarning(TEXT("SOCKET_ERROR"));
+		wstringstream code;
+		code << WSAGetLastError();
+		AppWarning(code.str().c_str());
+		settings.close();
+		return false;
 	}
 	
 	settings.close();
